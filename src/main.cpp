@@ -3,12 +3,15 @@
 
 int main(int argc, char *argv[])
 {
-    Drc drc;
-    drc.printDrc();
-    std::cout << "HELLO" << std::endl;
-
     std::string designName = argv[1];
     auto db = kicadPcbDataBase{designName};
-    db.printNet();
+    db.printUnconnectedPins();
+    Drc drc(db);
+    drc.createRTree();
+    //drc.printObject();
+    //drc.printDrc();
+
+    
+    
     return 0;
 }
