@@ -7,7 +7,7 @@
 #include "module.h"
 #include "segment.h"
 #include "via.h"
-#include "mymath.h"
+#include "point.h"
 #include "shape.h"
 #include <boost/geometry.hpp>
 #include <boost/mpl/string.hpp>
@@ -64,7 +64,14 @@ class Object
                 : m_type(type), m_dbId(dbId), m_netId(netId), m_compId(compId), m_instId(instId){};
         ~Object(){};
         void setRTreeId(const std::pair<int,int> &id) {m_ids.push_back(id); }
+        void setBBox(const box &b) { m_bbox = b;}
+        void setShape(const points_2d &s) { m_shape = s;}
+        void setPoly(const polygon_t &poly) { m_poly = poly;}
+        box &getBBox() { return m_bbox;}
+        points_2d &getShape { return m_shape;}
+        polygon_t &getPoly { return m_poly;}
         std::vector< std::pair<int, int> > &getId() { return m_ids;}
+
 
     private:
         ObjectType m_type;  
@@ -73,7 +80,8 @@ class Object
         int m_compId;
         int m_instId;
         points_2d m_shape;
-
+        polygon_t m_poly;
+        box m_bbox;
         std::vector< std::pair<int, int> > m_ids;  //< the ith rtree, id in rtree >
 };
 

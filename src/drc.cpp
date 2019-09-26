@@ -17,7 +17,7 @@ void Drc::createRTree()
             points_2d line = s.getPos();
             auto width = s.getWidth();
             int layerId = m_db.getLayerId(s.getLayer());
-            points_2d coord = segment_to_rect(line, width);
+            points_2d coord = segmentToOctagon(line, width, 0.1);
             polygon_t polygon;
             for(auto &&p : coord)
             {
@@ -27,6 +27,9 @@ void Drc::createRTree()
 
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::SEGMENT, s.getId(), s.getNetId(), -1, -1);
+            obj.setShape(coord);
+            obj.setPoly(polygon);
+            obj.setBBox(b);
             if (layerId == 0)
             {
                 m_rtrees[0].insert(std::make_pair(b, id));
@@ -47,7 +50,7 @@ void Drc::createRTree()
         {
             point_2d pos = v.getPos();
             auto size = v.getSize();
-            points_2d coord = via_to_circle(pos, size);
+            points_2d coord = viaToOctagon(size, pos, 0.1);
             polygon_t polygon;
             for(auto &&p : coord)
             {
@@ -58,6 +61,9 @@ void Drc::createRTree()
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::VIA, v.getId(), v.getNetId(), -1, -1);
         
+            obj.setShape(coord);
+            obj.setPoly(polygon);
+            obj.setBBox(b);
             m_rtrees[0].insert(std::make_pair(b, id));
             obj.setRTreeId(std::make_pair(0,id));
             m_rtrees[1].insert(std::make_pair(b, id));
@@ -75,7 +81,8 @@ void Drc::createRTree()
             component comp = m_db.getComponent(compId);
             instance inst = m_db.getInstance(instId);
             auto &pad = comp.getPadstack(padId);
-            points_2d coord = shape_to_cords(pad.getSize(), pad.getPos(), padShape::RECT, inst.getAngle(), pad.getAngle(), 0);
+            points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle());
+            
             for (auto && p : coord)
             {
                 p.m_x = p.m_x + inst.getX();
@@ -90,6 +97,9 @@ void Drc::createRTree()
             std::vector<std::string> layers = pad.getLayers();
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::PIN, pad.getId(), net.getId(), compId, instId);
+            obj.setShape(coord);
+            obj.setPoly(polygon);
+            obj.setBBox(b);
 
             for (auto &&layer : layers)
             {
@@ -108,6 +118,53 @@ void Drc::createRTree()
             m_objects.push_back(obj);
         }
     }
+
+    std::vector<pin> pins = db.getUnconnectedPins();
+    for(auto &&pin : pins)
+    {
+        int padId = pin.m_padstack_id;
+        int compId = pin.m_comp_id;
+        int instId = pin.m_inst_id;
+        polygon_t polygon;
+        component comp = m_db.getComponent(compId);
+        instance inst = m_db.getInstance(instId);
+        auto &pad = comp.getPadstack(padId);
+        points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle());
+        
+        for (auto && p : coord)
+        {
+            p.m_x = p.m_x + inst.getX();
+            p.m_y = p.m_y + inst.getY();
+        }
+
+        for(auto &&p : coord)
+        {
+            bg::append(polygon.outer(), point(p.m_x, p.m_y)); 
+        }
+        bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
+        std::vector<std::string> layers = pad.getLayers();
+        box b = bg::return_envelope<box>(polygon);
+        Object obj(ObjectType::PIN, pad.getId(), net.getId(), compId, instId);
+        obj.setShape(coord);
+        obj.setPoly(polygon);
+        obj.setBBox(b);
+
+        for (auto &&layer : layers)
+        {
+            int layerId = m_db.getLayerId(layer);
+            if (layerId == 0)
+            {
+                m_rtrees[0].insert(std::make_pair(b, id));
+                obj.setRTreeId(std::make_pair(0,id));
+            }
+            else if (layerId == 31)
+            {
+                m_rtrees[1].insert(std::make_pair(b, id));
+                obj.setRTreeId(std::make_pair(1,id));
+            }
+        }
+        m_objects.push_back(obj);
+    } 
 }
 
 bool Drc::checkIntersection()
