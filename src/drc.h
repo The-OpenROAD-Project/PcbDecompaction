@@ -38,10 +38,10 @@ namespace bgi = boost::geometry::index;
 
 
 
-    typedef bg::model::point<double, 2, bg::cs::cartesian> point;
-    typedef bg::model::box<point> box;
-    typedef std::pair<box, int> value;
-    typedef bg::model::polygon<point> polygon_t;
+typedef bg::model::point<double, 2, bg::cs::cartesian> point;
+typedef bg::model::box<point> box;
+typedef std::pair<box, int> value;
+typedef bg::model::polygon<point> polygon_t;
 
 
 
@@ -67,9 +67,21 @@ class Object
         void setBBox(const box &b) { m_bbox = b;}
         void setShape(const points_2d &s) { m_shape = s;}
         void setPoly(const polygon_t &poly) { m_poly = poly;}
+        void setPos(const points_2d &pos) { m_pos = pos;}
+        void setPos(const point_2d &pos) { m_pos.push_back(pos);}
         box &getBBox() { return m_bbox;}
-        points_2d &getShape { return m_shape;}
-        polygon_t &getPoly { return m_poly;}
+        ObjectType &getType() { return m_type;}
+        int &getDBId() { return m_dbId;}
+        int &getCompId() {return m_compId;}
+        int &getInstId() {return m_instId;}
+        points_2d &getShape() { return m_shape;}
+        //point_2d &getPos() { return m_pos[0];}
+        points_2d &getPos() { return m_pos;}
+        polygon_t &getPoly() { return m_poly;}
+        int &getNetId() { return m_netId;}
+        int &getLayer() {return m_layer;}
+        std::vector< std::pair<int,int> > &getRtreeId(){ return m_ids;}
+
         std::vector< std::pair<int, int> > &getId() { return m_ids;}
 
 
@@ -81,6 +93,9 @@ class Object
         int m_instId;
         points_2d m_shape;
         polygon_t m_poly;
+        points_2d m_pos;
+        int m_layer;
+
         box m_bbox;
         std::vector< std::pair<int, int> > m_ids;  //< the ith rtree, id in rtree >
 };
@@ -95,9 +110,12 @@ class Drc
         };
         void createRTree();
         bool checkIntersection();
-
+        void testProjection();
+        void traverseRTree();
         void printDrc();
         void printObject();
+        points_2d projection(point_2d &, points_2d &, int );
+        points_2d buildRelation(int &, const int &);
 
 
 
