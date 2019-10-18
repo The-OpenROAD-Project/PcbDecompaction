@@ -82,7 +82,7 @@ class Object
         int &getLayer() {return m_layer;}
         std::vector< std::pair<int,int> > &getRtreeId(){ return m_ids;}
 
-        std::vector< std::pair<int, int> > &getId() { return m_ids;}
+        int &getId() { return m_ids[0].second;}
 
 
     private:

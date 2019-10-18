@@ -48,16 +48,17 @@ void Drc::createRTree()
             {
                 m_rtrees[0].insert(std::make_pair(b, id));
                 obj.setRTreeId(std::make_pair(0,id));
-                ++id;
+                
                 
             }
             else if (layerId == 31)
             {
                 m_rtrees[1].insert(std::make_pair(b, id));
                 obj.setRTreeId(std::make_pair(1,id));
-                ++id;
+                
             }
             m_objects.push_back(obj);
+            ++id;
         }
 
         for (auto &&v : vias)
@@ -138,16 +139,17 @@ void Drc::createRTree()
                 {
                     m_rtrees[0].insert(std::make_pair(b, id));
                     obj.setRTreeId(std::make_pair(0,id));
-                    ++id;
+                
                 }
                 else if (layer == 31)
                 {
                     m_rtrees[1].insert(std::make_pair(b, id));
                     obj.setRTreeId(std::make_pair(1,id));
-                    ++id;
+                    
                 }
             }
             m_objects.push_back(obj);
+            ++id;
         }
     }
 
@@ -192,16 +194,15 @@ void Drc::createRTree()
             {
                 m_rtrees[0].insert(std::make_pair(b, id));
                 obj.setRTreeId(std::make_pair(0,id));
-                ++id;
             }
             else if (layer == 31)
             {
                 m_rtrees[1].insert(std::make_pair(b, id));
                 obj.setRTreeId(std::make_pair(1,id));
-                ++id;
             }
         }
         m_objects.push_back(obj);
+        ++id;
     } 
 }
 /*
@@ -213,6 +214,7 @@ bool Drc::checkIntersection()
     return true;
 }*/
 
+/*
 points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
 {   
     auto &&obj1 = m_objects[obj1Id];
@@ -229,6 +231,8 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         center = pos[0];
     }
      
+    std::vector< std::vector <std::pair<int, point_2d>> > fourCoods;
+
     for(int i = 0 ; i < 4; ++i) {
         proCoord1 = projection(center, shape1, i*45);
         proCoord2 = projection(center, shape2, i*45);
@@ -243,36 +247,47 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
             projectionVec.push_back(std::make_pair(id, proCoord2[i]));
         }
         std::sort(projectionVec.begin(), projectionVec.end(), comp);
-    }
-    
-    bool pre, current;
-    if(projectionVec[1] < 20) pre = true;
-    else pre = false;
-    int i = 0;
-    for (i = 0 ; i < projectionVec.size(); ++i) {
-        if(projectionVec[i].first < 20) {
-            current = true;
-        } else {
-            current = false;
-        }
-        if(current != pre) {
-            break;
-        } 
-        pre = current;
-    }
-    
 
+        bool pre, current;
+        if(projectionVec[0] < 20) pre = true;
+        else pre = false;
+        int i = 0;
+        for (i = 0 ; i < projectionVec.size(); ++i) {
+            if(projectionVec[i].first < 20) {
+                current = true;
+            } else {
+                current = false;
+            }
+            if(current != pre) {
+                break;
+            } 
+            pre = current;
+        }
+
+
+    }
     
 }
-
+*/
 
 void Drc::traverseRTree()
 {
-    double MAX_DIST = 1; 
+    std::cout << "=========================" << std::endl;
+    double MAX_DIST = 0.2; 
     bg::model::point<double, 2, bg::cs::cartesian> point1;
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     //for(auto &&obj1 : m_objects) {
-        auto &&obj1 = m_objects[0];
+    auto &&obj1 = m_objects[191];
+    if (obj1.getType() == ObjectType::PIN){
+        auto compId = obj1.getCompId();
+        auto instId = obj1.getInstId();
+        auto padId = obj1.getDBId();
+        component comp = m_db.getComponent(compId);
+        instance inst = m_db.getInstance(instId);
+        auto &pad = comp.getPadstack(padId);
+        std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
+        std::cout << " pad: " << pad.getName() << std::endl;
+    }
         auto bbox = obj1.getBBox();
         std::vector< std::pair<int,int> > & rtreeId = obj1.getRtreeId();
         int rId = rtreeId[0].first;
@@ -300,8 +315,51 @@ void Drc::traverseRTree()
         std::cout << "spatial query result:" << std::endl;
         BOOST_FOREACH(value const& v, result_s) {
             std::cout << bg::wkt<box>(v.first) << " - " << v.second << std::endl;
-            if (v.second != rtreeId[0].second)
-                buildRelation(rtreeId[0].second, v.second);
+            /*if (v.second != rtreeId[0].second)
+                buildRelation(rtreeId[0].second, v.second);*/
+
+            auto &&obj2 = m_objects[v.second];
+            std::deque<polygon_t> output;
+            polygon_t poly1 = obj1.getPoly();
+            polygon_t poly2 = obj2.getPoly(); 
+            std::cout << "Polygon(";
+                auto coord = obj2.getShape();
+                for(auto &&p : coord)
+                {
+                    std::cout << "(" << p.m_x << "," << p.m_y << "),";
+
+                } 
+                std::cout << std::endl;
+            std::cout << "!!Overlap!!" << std::endl;
+            if (boost::geometry::intersects(poly1, poly2)) {
+                boost::geometry::intersection(poly1, poly2, output);
+                BOOST_FOREACH(polygon_t const& p, output)
+                {
+                    std::cout << "\tarea:" << boost::geometry::area(p) << std::endl;
+                    std::cout << " obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << std::endl;
+                }
+
+                if (obj2.getType() == ObjectType::SEGMENT) {
+                    auto dbId = obj2.getDBId();
+                    points_2d pos = obj2.getPos();
+                    std::cout << "segment: ";
+                    for(auto &&p : pos){ 
+                        std::cout << "(" << p.m_x << "," << p.m_y << ") ";
+                        
+                    }
+                    std::cout << std::endl;
+
+                    std::cout << "Polygon(";
+                    auto coord = obj2.getShape();
+                    for(auto &&p : coord)
+                    {
+                        std::cout << "(" << p.m_x << "," << p.m_y << "),";
+
+                    }
+                    std::cout << std::endl;
+                }
+            }
+
         }
 
         /*auto center = point_2d{0,0};
@@ -433,10 +491,11 @@ void Drc::printDrc()
                 BOOST_FOREACH(polygon_t const& p, output)
                 {
                     
-                    if (boost::geometry::area(p)>0.5) {
+                    if (boost::geometry::area(p)>0.05) {
                         count++;
                     std::cout << "Conflict: " << std::endl;
                     std::cout << "\tarea:" << boost::geometry::area(p) << std::endl;
+                    std::cout << " obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << std::endl;
                 if (obj1.getType() == ObjectType::PIN) {
                     auto compId = obj1.getCompId();
                     auto instId = obj1.getInstId();
@@ -446,7 +505,7 @@ void Drc::printDrc()
                     auto &pad = comp.getPadstack(padId);
                     std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
                     std::cout << " pad: " << pad.getName() << std::endl;
-
+                    
                     std::cout << "Polygon(";
                     auto coord = obj1.getShape();
                     for(auto &&p : coord)
@@ -499,6 +558,7 @@ void Drc::printDrc()
                     auto &pad = comp.getPadstack(padId);
                     std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
                     std::cout << " pad: " << pad.getName() << std::endl;
+                    std::cout << " obj id: " << obj2.getId() << std::endl;
 
                     std::cout << "Polygon(";
                     auto coord = obj2.getShape();
@@ -559,11 +619,21 @@ void Drc::printObject()
     std::cout << "###                               ###" << std::endl;
     std::cout << "#####################################" << std::endl;
     for (auto &&obj : m_objects){
-        std::vector< std::pair<int, int> > ids = obj.getId();
+        std::vector< std::pair<int, int> > ids = obj.getRtreeId();
         for (auto &&id : ids)
         {
             std::cout << "(" << id.first << "," << id.second << ") ";
         }
         std::cout << std::endl;
     }
+}
+
+std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
+    double y1 = p1.m_y, y2 = p2.m_y, x1 = p1.m_x, x2 = p1.m_x;
+    double slope = (y2 - y1)/(x2 - x1);
+    double b = y1 - slope*x1;
+    std::vector<double> equ;
+    equ.push_back(b);
+    equ.push_back(slope);
+    return equ;
 }
