@@ -36,7 +36,7 @@ void Drc::createRTree()
                 bg::append(polygon.outer(), point(x, y)); 
             }
            // std::cout << std::endl;    
-            //bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
+            bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
 
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::SEGMENT, s.getId(), s.getNetId(), -1, -1);
@@ -76,7 +76,7 @@ void Drc::createRTree()
                 bg::append(polygon.outer(), point(x, y)); 
             }
             std::cout << std::endl;
-            //bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
+            bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
 
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::VIA, v.getId(), v.getNetId(), -1, -1);
@@ -124,7 +124,7 @@ void Drc::createRTree()
                 bg::append(polygon.outer(), point(x, y)); 
             }
             std::cout << std::endl;
-            //bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
+            bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
             std::vector<int> layers = m_db.getPinLayer(instId, padId);
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::PIN, pad.getId(), net.getId(), compId, instId);
@@ -179,7 +179,7 @@ void Drc::createRTree()
             double y = p.m_y;
             bg::append(polygon.outer(), point(x, y)); 
         }
-        //bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
+        bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y)); 
         std::vector<int> layers = m_db.getPinLayer(instId, padId);
         box b = bg::return_envelope<box>(polygon);
         Object obj(ObjectType::PIN, pad.getId(), -1, compId, instId);
@@ -214,7 +214,7 @@ bool Drc::checkIntersection()
     return true;
 }*/
 
-/*
+
 points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
 {   
     auto &&obj1 = m_objects[obj1Id];
@@ -223,7 +223,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
     auto &&shape2 = obj2.getShape();
     point_2d center;
     points_2d pos = obj1.getPos();
-    points_2d proCoord1, proCoord2;
+    points_2d proCoord1, proCoord2, coord;;
     if(obj1.getType() == ObjectType::SEGMENT) {
         center.m_x = (pos[0].m_x + pos[1].m_x)/2;
         center.m_y = (pos[1].m_y + pos[1].m_y)/2;
@@ -248,27 +248,42 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         }
         std::sort(projectionVec.begin(), projectionVec.end(), comp);
 
-        bool pre, current;
-        if(projectionVec[0] < 20) pre = true;
-        else pre = false;
-        int i = 0;
-        for (i = 0 ; i < projectionVec.size(); ++i) {
-            if(projectionVec[i].first < 20) {
-                current = true;
+        std::cout << "degree :" << i*45 << std::endl;
+        int obj1L, obj1R, obj2L, obj2R;
+        bool obj1SepObj2 = false, obj2SepObj1 = false, obj1interObj2 = false,
+             obj2interObj1 = false, obj1ConObj2 = false, obj2ConObj1 = false;
+        // *--------*  *---------:sep
+        // *---------*
+        //       *----------*:inter
+        //        *----*
+        //  *----------------*:con
+        int count1 = 0, count2 = 0;
+
+        for (int j = 0 ; j < projectionVec.size(); ++j) {
+        //    std::cout << projectionVec[j].first << std::endl;
+        //    printPoint(projectionVec[j].second);
+            if(projectionVec[j].first < 20) {
+                ++count1;
+                if(count1 == 1 &&) obj1L = projectionVec[j].first;
+                else if(count1 == 8 && count2 == 0) {
+                    obj1R = projectionVec[j].first;
+                    obj1SepObj2 = true;
+                } 
             } else {
-                current = false;
+                 ++count2;
+                if(count2 == 1) obj2L = projectionVec[j].first;
+                else if(count2 == 8 && count1 == 0) {
+                    obj2R = projectionVec[j].first;
+                    obj2SepObj1 = true;
+                }
             }
-            if(current != pre) {
-                break;
-            } 
-            pre = current;
         }
 
 
     }
-    
+    return coord;
 }
-*/
+
 
 void Drc::traverseRTree()
 {
@@ -292,6 +307,8 @@ void Drc::traverseRTree()
         std::vector< std::pair<int,int> > & rtreeId = obj1.getRtreeId();
         int rId = rtreeId[0].first;
         std::cout << "Object Id: " << rtreeId[0].first << "," << rtreeId[0].second << std::endl;
+        auto coord = obj1.getShape();
+        printPolygon(coord);
 
         double minX = bg::get<bg::min_corner, 0>(bbox);
         double minY = bg::get<bg::min_corner, 1>(bbox);
@@ -315,22 +332,21 @@ void Drc::traverseRTree()
         std::cout << "spatial query result:" << std::endl;
         BOOST_FOREACH(value const& v, result_s) {
             std::cout << bg::wkt<box>(v.first) << " - " << v.second << std::endl;
-            /*if (v.second != rtreeId[0].second)
-                buildRelation(rtreeId[0].second, v.second);*/
+            
 
             auto &&obj2 = m_objects[v.second];
             std::deque<polygon_t> output;
             polygon_t poly1 = obj1.getPoly();
-            polygon_t poly2 = obj2.getPoly(); 
-            std::cout << "Polygon(";
+            polygon_t poly2 = obj2.getPoly();
+            std::vector< std::pair<int,int> > & rtreeId2 = obj2.getRtreeId();
+            std::cout << "Object2 Id: " << rtreeId2[0].first << "," << rtreeId2[0].second << std::endl;
                 auto coord = obj2.getShape();
-                for(auto &&p : coord)
-                {
-                    std::cout << "(" << p.m_x << "," << p.m_y << "),";
+                printPolygon(coord);
 
-                } 
-                std::cout << std::endl;
-            std::cout << "!!Overlap!!" << std::endl;
+            if (obj1.getNetId() != obj2.getNetId())
+                buildRelation(rtreeId[0].second, v.second);
+
+            /*std::cout << "!!Overlap!!" << std::endl;
             if (boost::geometry::intersects(poly1, poly2)) {
                 boost::geometry::intersection(poly1, poly2, output);
                 BOOST_FOREACH(polygon_t const& p, output)
@@ -358,7 +374,7 @@ void Drc::traverseRTree()
                     }
                     std::cout << std::endl;
                 }
-            }
+            }*/
 
         }
 
@@ -460,6 +476,72 @@ void Drc::testProjection()
 
         }
     }
+}
+
+void Drc::checkClearance()
+{
+    if (obj1.getType() == ObjectType::PIN){
+        auto compId = obj1.getCompId();
+        auto instId = obj1.getInstId();
+        auto padId = obj1.getDBId();
+        component comp = m_db.getComponent(compId);
+        instance inst = m_db.getInstance(instId);
+        auto &pad = comp.getPadstack(padId);
+        std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
+        std::cout << " pad: " << pad.getName() << std::endl;
+    }
+        auto bbox = obj1.getBBox();
+        std::vector< std::pair<int,int> > & rtreeId = obj1.getRtreeId();
+        int rId = rtreeId[0].first;
+        std::cout << "Object Id: " << rtreeId[0].first << "," << rtreeId[0].second << std::endl;
+        auto coord = obj1.getShape();
+        printPolygon(coord);
+
+        double minX = bg::get<bg::min_corner, 0>(bbox);
+        double minY = bg::get<bg::min_corner, 1>(bbox);
+        double maxX = bg::get<bg::max_corner, 0>(bbox);
+        double maxY = bg::get<bg::max_corner, 1>(bbox);
+        minX -= MAX_DIST;
+        minY -= MAX_DIST;
+        maxX += MAX_DIST;
+        maxY += MAX_DIST;
+        point1.set<0>(minX);
+        point1.set<1>(minY);
+        point2.set<0>(maxX);
+        point2.set<1>(maxY);
+        box query_box(point1, point2);
+        std::vector<value> result_s;
+        m_rtrees[rId].query(bgi::intersects(query_box), std::back_inserter(result_s));
+
+
+        std::cout << "spatial query box:" << std::endl;
+        std::cout << bg::wkt<box>(query_box) << std::endl;
+        std::cout << "spatial query result:" << std::endl;
+        BOOST_FOREACH(value const& v, result_s) {
+            std::cout << bg::wkt<box>(v.first) << " - " << v.second << std::endl;
+            
+
+            auto &&obj2 = m_objects[v.second];
+            std::deque<polygon_t> output;
+            polygon_t poly1 = obj1.getPoly();
+            polygon_t poly2 = obj2.getPoly();
+            std::vector< std::pair<int,int> > & rtreeId2 = obj2.getRtreeId();
+            std::cout << "Object2 Id: " << rtreeId2[0].first << "," << rtreeId2[0].second << std::endl;
+                auto coord = obj2.getShape();
+                printPolygon(coord);
+
+            if (obj1.getNetId() != obj2.getNetId())
+                buildRelation(rtreeId[0].second, v.second);
+
+            /*std::cout << "!!Overlap!!" << std::endl;
+            if (boost::geometry::intersects(poly1, poly2)) {
+                boost::geometry::intersection(poly1, poly2, output);
+                BOOST_FOREACH(polygon_t const& p, output)
+                {
+                    std::cout << "\tarea:" << boost::geometry::area(p) << std::endl;
+                    std::cout << " obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << std::endl;
+                }
+
 }
 
 void Drc::printDrc()
@@ -636,4 +718,18 @@ std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
     equ.push_back(b);
     equ.push_back(slope);
     return equ;
+}
+
+void Drc::printPolygon(points_2d &coord) {
+    std::cout << "Polygon(";
+    for (size_t i = 0; i < coord.size(); ++i) {
+
+        std::cout << coord[i];
+        if(i != 7) std::cout << ", ";
+    }               
+    std::cout << ")" << std::endl;
+}
+
+void Drc::printPoint(point_2d &p) {
+    std::cout << "Point({" << p.m_x << "," << p.m_y << "})" << std::endl;
 }
