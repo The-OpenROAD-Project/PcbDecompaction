@@ -232,27 +232,84 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
     }
      
     std::vector< std::vector <std::pair<int, point_2d>> > fourCoods;
+    double dist = 10000000; 
+    bool overlap = true;
+    std::vector< std::pair<int, point_2d> > proj1, proj2;
 
     for(int i = 0 ; i < 4; ++i) {
         proCoord1 = projection(center, shape1, i*45);
         proCoord2 = projection(center, shape2, i*45);
 
         std::vector< std::pair<int, point_2d> > projectionVec;
+        std::vector< std::pair<int, point_2d> > project1, project2;
+        
         for (int i = 0; i < proCoord1.size(); ++i) {
             int id = 10 + i;
             projectionVec.push_back(std::make_pair(id, proCoord1[i]));
+            project1.push_back(std::make_pair(i,proCoord1[i]));
         }
         for (int i = 0; i < proCoord2.size(); ++i) {
             int id = 20 + i;
             projectionVec.push_back(std::make_pair(id, proCoord2[i]));
+            project2.push_back(std::make_pair(i,proCoord2[i]));
         }
         std::sort(projectionVec.begin(), projectionVec.end(), comp);
+        std::sort(project1.begin(), project1.end(), comp);
+        std::sort(project2.begin(), project2.end(), comp);
 
+
+        // Case1: 
+        //    obj1         obj2
+        // *--------*  
+        //        *---------:intersect
+        if(project1[0].second < project2[0].second && project2[0].second < project1[7].second && 
+            project1[7].second < project2[7].second) 
+        {
+            dist = project1[7].second.getDistance(project1[7].second, project2[0].second);    
+            overlap = true;   
+        } 
+        else if(project2[0].second < project1[0].second && project1[0].second < project2[7].second && 
+            project2[7].second < project1[7].second) 
+        {
+            dist = project2[7].second.getDistance(project2[7].second, project1[0].second);  
+            overlap = true;
+        }
+        // Case2:
+        // 
+        // *--------*   *---------*:sep
+        else if(project1[7].second < project2[0].second)
+        {
+            dist = project1[7].second.getDistance(project1[7].second, project2[0].second); 
+            overlap = false;  
+        }
+        else if(project2[7].second < project1[0].second)
+        {
+            dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
+            overlap = false;   
+        }
+        // Case3:
+        //     *-----*
+        // *-------------*
+        else if(project1[0].second < project2[0].second && project2[0].second < project1[7].second && project1[0].second < project2[7].second 
+            && project2[7].second < project1[7].second)
+        {
+            dist = project2[0].second.getDistance(project2[0].second, project2[7].second);
+            overlap = true;
+        }
+        else if(project2[0].second < project1[0].second && project1[0].second < project2[7].second && project2[0] < project1[7] &&
+            project1[7].second < project2[7].second)
+        {
+            dist = project1[0].second.getDistance(project1[0].second, project1[7].second);
+            overlap = true;
+        }
+
+        if(overlap)
+        /*
         std::cout << "degree :" << i*45 << std::endl;
         int obj1L, obj1R, obj2L, obj2R;
         bool obj1SepObj2 = false, obj2SepObj1 = false, obj1interObj2 = false,
              obj2interObj1 = false, obj1ConObj2 = false, obj2ConObj1 = false;
-        // *--------*  *---------:sep
+
         // *---------*
         //       *----------*:inter
         //        *----*
@@ -264,7 +321,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         //    printPoint(projectionVec[j].second);
             if(projectionVec[j].first < 20) {
                 ++count1;
-                if(count1 == 1 &&) obj1L = projectionVec[j].first;
+                if(count1 == 1) obj1L = projectionVec[j].first;
                 else if(count1 == 8 && count2 == 0) {
                     obj1R = projectionVec[j].first;
                     obj1SepObj2 = true;
@@ -277,7 +334,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
                     obj2SepObj1 = true;
                 }
             }
-        }
+        }*/
 
 
     }
@@ -478,6 +535,7 @@ void Drc::testProjection()
     }
 }
 
+/*
 void Drc::checkClearance()
 {
     if (obj1.getType() == ObjectType::PIN){
@@ -540,9 +598,10 @@ void Drc::checkClearance()
                 {
                     std::cout << "\tarea:" << boost::geometry::area(p) << std::endl;
                     std::cout << " obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << std::endl;
-                }
+                }*/
 
-}
+//}
+
 
 void Drc::printDrc()
 {
