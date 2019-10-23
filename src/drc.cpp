@@ -628,7 +628,7 @@ void Drc::printObject()
     }
 }
 
-std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
+/*std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
     double y1 = p1.m_y, y2 = p2.m_y, x1 = p1.m_x, x2 = p1.m_x;
     double slope = (y2 - y1)/(x2 - x1);
     double b = y1 - slope*x1;
@@ -636,4 +636,4 @@ std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
     equ.push_back(b);
     equ.push_back(slope);
     return equ;
-}
+}*/
