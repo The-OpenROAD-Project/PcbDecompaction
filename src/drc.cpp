@@ -303,7 +303,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
             overlap = true;
         }
 
-        if(overlap)
+        //if(overlap)
         /*
         std::cout << "degree :" << i*45 << std::endl;
         int obj1L, obj1R, obj2L, obj2R;
