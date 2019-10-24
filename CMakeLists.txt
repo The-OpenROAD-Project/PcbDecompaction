@@ -28,6 +28,7 @@ set (PCBDRC_SRC
 
 set (PCBDRC_HEADER
     src/drc.h
+    src/object.h
     #src/GridBasedRouter.h
     #src/plotter.h
     #src/globalParam.h
