@@ -13,9 +13,9 @@ int main(int argc, char *argv[])
     //db.printUnconnectedPins();
     Drc drc(db);
     drc.createRTree();
-    drc.traverseRTree();
+    //drc.traverseRTree();
     //drc.printObject();
-    //drc.printDrc();
+    drc.printDrc();
     //drc.testProjection();
 
     

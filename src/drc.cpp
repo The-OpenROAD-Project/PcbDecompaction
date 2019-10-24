@@ -301,8 +301,8 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
             dist = project1[0].second.getDistance(project1[0].second, project1[7].second);
             overlap = true;
         }
-
-        /*
+        if (overlap)
+            /*
         std::cout << "degree :" << i*45 << std::endl;
         int obj1L, obj1R, obj2L, obj2R;
         bool obj1SepObj2 = false, obj2SepObj1 = false, obj1interObj2 = false,
@@ -334,7 +334,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
             }
         }*/
 
-        return coord;
+            return coord;
     }
 }
 
@@ -631,12 +631,12 @@ void Drc::printDrc()
                 BOOST_FOREACH (polygon_t const &p, output)
                 {
 
-                    if (boost::geometry::area(p) > 0.05)
+                    if (boost::geometry::area(p) > 0.14)
                     {
                         count++;
-                        std::cout << "Conflict: " << std::endl;
-                        std::cout << "\tarea:" << boost::geometry::area(p) << std::endl;
-                        std::cout << " obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << std::endl;
+
+                        std::cout << "----------CONFLICT---------- " << std::endl;
+                        std::cout << "obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << ", area:" << boost::geometry::area(p) << std::endl;
                         if (obj1.getType() == ObjectType::PIN)
                         {
                             auto compId = obj1.getCompId();
@@ -645,16 +645,10 @@ void Drc::printDrc()
                             component comp = m_db.getComponent(compId);
                             instance inst = m_db.getInstance(instId);
                             auto &pad = comp.getPadstack(padId);
-                            std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
-                            std::cout << " pad: " << pad.getName() << std::endl;
+                            std::cout << "Component: " << comp.getName() << " Instance: " << inst.getName();
+                            std::cout << " Pad: " << pad.getName() << std::endl;
 
-                            std::cout << "Polygon(";
-                            auto coord = obj1.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj1.getShape());
                         }
                         else if (obj1.getType() == ObjectType::SEGMENT)
                         {
@@ -667,13 +661,7 @@ void Drc::printDrc()
                             }
                             std::cout << std::endl;
 
-                            std::cout << "Polygon(";
-                            auto coord = obj1.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj1.getShape());
                         }
                         else if (obj1.getType() == ObjectType::VIA)
                         {
@@ -681,13 +669,7 @@ void Drc::printDrc()
                             points_2d pos = obj1.getPos();
                             std::cout << "via: (" << pos[0].m_x << "," << pos[0].m_y << ")" << std::endl;
 
-                            std::cout << "Polygon(";
-                            auto coord = obj1.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj1.getShape());
                         }
 
                         if (obj2.getType() == ObjectType::PIN)
@@ -698,17 +680,11 @@ void Drc::printDrc()
                             component comp = m_db.getComponent(compId);
                             instance inst = m_db.getInstance(instId);
                             auto &pad = comp.getPadstack(padId);
-                            std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
-                            std::cout << " pad: " << pad.getName() << std::endl;
+                            std::cout << "Component: " << comp.getName() << " Instance: " << inst.getName();
+                            std::cout << " Pad: " << pad.getName() << std::endl;
                             std::cout << " obj id: " << obj2.getId() << std::endl;
 
-                            std::cout << "Polygon(";
-                            auto coord = obj2.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj2.getShape());
                         }
                         else if (obj2.getType() == ObjectType::SEGMENT)
                         {
@@ -721,26 +697,14 @@ void Drc::printDrc()
                             }
                             std::cout << std::endl;
 
-                            std::cout << "Polygon(";
-                            auto coord = obj2.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj2.getShape());
                         }
                         else if (obj2.getType() == ObjectType::VIA)
                         {
                             auto dbId = obj2.getDBId();
                             points_2d pos = obj2.getPos();
                             std::cout << "via: (" << pos[0].m_x << "," << pos[0].m_y << ")" << std::endl;
-                            std::cout << "Polygon(";
-                            auto coord = obj2.getShape();
-                            for (auto &&p : coord)
-                            {
-                                std::cout << "(" << p.m_x << "," << p.m_y << "),";
-                            }
-                            std::cout << std::endl;
+                            printPolygon(obj2.getShape());
                         }
                     }
                 }
@@ -788,7 +752,7 @@ void Drc::printPolygon(points_2d &coord)
     {
 
         std::cout << coord[i];
-        if (i != 7)
+        if (i != 8)
             std::cout << ", ";
     }
     std::cout << ")" << std::endl;
