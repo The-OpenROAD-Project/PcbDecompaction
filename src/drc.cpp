@@ -633,6 +633,7 @@ void Drc::printDrc()
 
                     if (boost::geometry::area(p) > 0.14)
                     {
+                        m_db.addClearanceDrc(obj1, obj2);
                         count++;
 
                         std::cout << "----------CONFLICT---------- " << std::endl;
