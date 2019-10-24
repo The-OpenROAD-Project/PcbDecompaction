@@ -17,10 +17,9 @@ int main(int argc, char *argv[])
     drc.createRTree();
     drc.traverseRTree();*/
     //drc.printObject();
-    //drc.printDrc();
+    drc.printDrc();
+    db.printClearanceDrc();
     //drc.testProjection();
 
-    
-    
     return 0;
 }
