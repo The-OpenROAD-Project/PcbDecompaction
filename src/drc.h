@@ -47,8 +47,9 @@ class Drc
         void printObject();
         void checkClearance();
         points_2d projection(point_2d &, points_2d &, int );
-        points_2d buildRelation(int &, const int &);
+        std::vector<double> buildRelation(int &, const int &);
         std::vector<double> lineEquation(point_2d &, point_2d &);
+        void printEquation(std::vector<double> &);
 
         void printPolygon(points_2d &coord);
         void printPoint(point_2d&);

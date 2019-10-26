@@ -209,7 +209,7 @@ bool Drc::checkIntersection()
     return true;
 }*/
 
-points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
+std::vector<double> Drc::buildRelation(int &obj1Id, const int &obj2Id)
 {
     auto &&obj1 = m_objects[obj1Id];
     auto &&obj2 = m_objects[obj2Id];
@@ -218,7 +218,7 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
     point_2d center;
     points_2d pos = obj1.getPos();
     points_2d proCoord1, proCoord2, coord;
-    ;
+
     if (obj1.getType() == ObjectType::SEGMENT)
     {
         center.m_x = (pos[0].m_x + pos[1].m_x) / 2;
@@ -230,9 +230,10 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
     }
 
     std::vector<std::vector<std::pair<int, point_2d>>> fourCoods;
-    double dist = 10000000;
+    double dist;
     bool overlap = true;
     std::vector<std::pair<int, point_2d>> proj1, proj2;
+    std::map<double, std::vector<std::pair<int, int>>> overlapResult, nonoverlapResult;
 
     for (int i = 0; i < 4; ++i)
     {
@@ -265,14 +266,22 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         if (project1[0].second < project2[0].second && project2[0].second < project1[7].second &&
             project1[7].second < project2[7].second)
         {
+
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
+            overlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
+            overlapResult[dist].push_back(std::make_pair(project2[0].first, project2[1].first));
             overlap = true;
+            std::cout << "A" << dist << std::endl;
         }
         else if (project2[0].second < project1[0].second && project1[0].second < project2[7].second &&
                  project2[7].second < project1[7].second)
         {
+
             dist = project2[7].second.getDistance(project2[7].second, project1[0].second);
+            overlapResult[dist].push_back(std::make_pair(project1[0].first, project1[1].first));
+            overlapResult[dist].push_back(std::make_pair(project2[6].first, project2[7].first));
             overlap = true;
+            std::cout << "B" << dist << std::endl;
         }
         // Case2:
         //
@@ -280,12 +289,18 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         else if (project1[7].second < project2[0].second)
         {
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
+            nonoverlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
+            nonoverlapResult[dist].push_back(std::make_pair(project2[0].first, project2[1].first));
             overlap = false;
+            std::cout << "C" << dist << std::endl;
         }
         else if (project2[7].second < project1[0].second)
         {
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
+            nonoverlapResult[dist].push_back(std::make_pair(project1[0].first, project1[1].first));
+            nonoverlapResult[dist].push_back(std::make_pair(project2[6].first, project2[7].first));
             overlap = false;
+            std::cout << "D" << dist << std::endl;
         }
         // Case3:
         //     *-----*
@@ -294,12 +309,14 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
         {
             dist = project2[0].second.getDistance(project2[0].second, project2[7].second);
             overlap = true;
+            std::cout << "E" << dist << std::endl;
         }
         else if (project2[0].second < project1[0].second && project1[0].second < project2[7].second && project2[0] < project1[7] &&
                  project1[7].second < project2[7].second)
         {
             dist = project1[0].second.getDistance(project1[0].second, project1[7].second);
             overlap = true;
+            std::cout << "F" << dist << std::endl;
         }
 
         //if(overlap)
@@ -335,9 +352,24 @@ points_2d Drc::buildRelation(int &obj1Id, const int &obj2Id)
                 }
             }
         }*/
-
-            return coord;
     }
+
+    std::vector<double> equ;
+    if (nonoverlapResult.empty())
+    {
+        auto &&p = overlapResult.begin();
+        auto &&point = p->second;
+        equ = lineEquation(shape1[point[0].first], shape1[point[0].second]);
+        std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+    }
+    else
+    {
+        auto &&p = nonoverlapResult.begin();
+        auto &&point = p->second;
+        equ = lineEquation(shape1[point[0].first], shape1[point[0].second]);
+        std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+    }
+    return equ;
 }
 
 void Drc::traverseRTree()
@@ -399,8 +431,10 @@ void Drc::traverseRTree()
         printPolygon(coord);
 
         if (obj1.getNetId() != obj2.getNetId())
-            buildRelation(rtreeId[0].second, v.second);
-
+        {
+            std::vector<double> equ = buildRelation(rtreeId[0].second, v.second);
+            printEquation(equ);
+        }
         /*std::cout << "!!Overlap!!" << std::endl;
             if (boost::geometry::intersects(poly1, poly2)) {
                 boost::geometry::intersection(poly1, poly2, output);
@@ -738,15 +772,35 @@ void Drc::printObject()
     }
 }
 
-/*std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2) {
-    double y1 = p1.m_y, y2 = p2.m_y, x1 = p1.m_x, x2 = p1.m_x;
-    double slope = (y2 - y1)/(x2 - x1);
-    double b = y1 - slope*x1;
+std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2)
+{
+    double y1 = p1.m_y, y2 = p2.m_y, x1 = p1.m_x, x2 = p2.m_x;
+    double slope = 0;
+    if (x2 != x1)
+        slope = (y2 - y1) / (x2 - x1);
+    std::cout << "slope: " << slope << std::endl;
+    double b = y1 - slope * x1;
     std::vector<double> equ;
-    equ.push_back(b);
-    equ.push_back(slope);
+    if (x1 == x2)
+    {
+        equ.push_back(0);
+        equ.push_back(1);
+        equ.push_back(-x1);
+    }
+    else
+    {
+        equ.push_back(1);
+        equ.push_back(slope);
+        equ.push_back(b);
+    }
+
     return equ;
-}*/
+}
+
+void Drc::printEquation(std::vector<double> &equ)
+{
+    std::cout << equ[0] << "y - " << equ[1] << "x - " << equ[2] << " > 0" << std::endl;
+}
 
 void Drc::printPolygon(points_2d &coord)
 {
