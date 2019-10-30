@@ -667,7 +667,7 @@ void Drc::printDrc()
                 BOOST_FOREACH (polygon_t const &p, output)
                 {
 
-                    if (boost::geometry::area(p) > 0.14)
+                    if (boost::geometry::area(p) > 0)
                     {
                         m_db.addClearanceDrc(obj1, obj2);
                         count++;
