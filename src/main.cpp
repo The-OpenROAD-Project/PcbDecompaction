@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     //drc.printObject();
     drc.printDrc();
     db.printKiCad();
-    //db.printClearanceDrc();
+    db.printClearanceDrc();
     //drc.testProjection();
 
     return 0;
