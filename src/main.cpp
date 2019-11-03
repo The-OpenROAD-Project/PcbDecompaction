@@ -15,11 +15,11 @@ int main(int argc, char *argv[])
     //db.printUnconnectedPins();
     Drc drc(db);
     drc.createRTree();
-    //drc.traverseRTree();
+    drc.traverseRTree();
     //drc.printObject();
-    drc.printDrc();
-    db.printKiCad();
-    db.printClearanceDrc();
+    //drc.printDrc();
+    //db.printKiCad();
+    //db.printClearanceDrc();
     //drc.testProjection();
 
     return 0;

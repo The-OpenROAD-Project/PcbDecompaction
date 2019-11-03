@@ -10,6 +10,7 @@ void Drc::createRTree()
     m_rtrees.resize(m_db.getNumCopperLayers());
     std::vector<net> nets = m_db.getNets();
     int id = 0;
+    double clearance = 0.1;
     for (auto &&net : nets)
     {
         std::vector<Pin> pins = net.getPins();
@@ -24,7 +25,8 @@ void Drc::createRTree()
             int layerId = m_db.getLayerId(s.getLayer());
             if (layerId == 31)
                 continue;
-            points_2d coord = segmentToOctagon(line, width, 0.1);
+            points_2d coord = segmentToOctagon(line, width, clearance);
+            points_2d coordR = segmentToRelativeOctagon(line, width, clearance);
             //std::cout << "Segment: (" << line[0].m_x << "," << line[0].m_y << ")" << "(" << line[1].m_x << "," << line[1].m_y << ")" << std::endl;
             polygon_t polygon;
             //std::cout << "Polygon(";
@@ -42,6 +44,7 @@ void Drc::createRTree()
             Object obj(ObjectType::SEGMENT, s.getId(), s.getNetId(), -1, -1);
             obj.setShape(coord);
             obj.setPoly(polygon);
+            obj.setRelativeShape(coordR);
             obj.setBBox(b);
             obj.setPos(s.getPos());
             if (layerId == 0)
@@ -63,7 +66,8 @@ void Drc::createRTree()
             point_2d pos = v.getPos();
             std::cout << "Via: " << pos.m_x << "," << pos.m_y << std::endl;
             auto size = v.getSize();
-            points_2d coord = viaToOctagon(size, pos, 0.1);
+            points_2d coord = viaToOctagon(size, pos, clearance);
+            points_2d coordRe = viaToRelativeOctagon(size, clearance);
             polygon_t polygon;
             std::cout << "Polygon(";
             for (auto &&p : coord)
@@ -81,6 +85,7 @@ void Drc::createRTree()
 
             obj.setShape(coord);
             obj.setPoly(polygon);
+            obj.setRelativeShape(coordRe);
             obj.setBBox(b);
             obj.setPos(pos);
             m_rtrees[0].insert(std::make_pair(b, id));
@@ -102,7 +107,9 @@ void Drc::createRTree()
             auto &pad = comp.getPadstack(padId);
             auto pinPos = point_2d{};
             m_db.getPinPosition(pin, &pinPos);
-            points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle());
+            points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), clearance, inst.getAngle(), pad.getAngle());
+            auto coordRe = points_2d{};
+            m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
             std::cout << "net: " << net.getId() << " comp Name: " << comp.getName() << " inst Name: " << inst.getName() << " pad: " << pad.getName() << std::endl;
             std::cout << " \tinst pos: (" << inst.getX() << "," << inst.getY() << ")" << std::endl;
             std::cout << " \tpin pos: (" << pinPos.m_x << "," << pinPos.m_y << ")" << std::endl;
@@ -126,6 +133,7 @@ void Drc::createRTree()
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::PIN, pad.getId(), net.getId(), compId, instId);
             obj.setPos(pinPos);
+            obj.setRelativeShape(coordRe);
             obj.setShape(coord);
             obj.setPoly(polygon);
             obj.setBBox(b);
@@ -159,6 +167,8 @@ void Drc::createRTree()
         instance inst = m_db.getInstance(instId);
         auto &pad = comp.getPadstack(padId);
         points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle());
+        auto coordRe = points_2d{};
+        m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
         auto pinPos = point_2d{};
         m_db.getPinPosition(pin, &pinPos);
 
@@ -180,6 +190,7 @@ void Drc::createRTree()
         Object obj(ObjectType::PIN, pad.getId(), -1, compId, instId);
         obj.setPos(pinPos);
         obj.setShape(coord);
+        obj.setRelativeShape(coordRe);
         obj.setPoly(polygon);
         obj.setBBox(b);
 
@@ -209,12 +220,14 @@ bool Drc::checkIntersection()
     return true;
 }*/
 
-std::vector<double> Drc::buildRelation(int &obj1Id, const int &obj2Id)
+std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2Id)
 {
     auto &&obj1 = m_objects[obj1Id];
     auto &&obj2 = m_objects[obj2Id];
     auto &&shape1 = obj1.getShape();
     auto &&shape2 = obj2.getShape();
+    auto &&reShape1 = obj1.getRelativeShape();
+    auto &&reShape2 = obj2.getRelativeShape();
     point_2d center;
     points_2d pos = obj1.getPos();
     points_2d proCoord1, proCoord2, coord;
@@ -354,20 +367,22 @@ std::vector<double> Drc::buildRelation(int &obj1Id, const int &obj2Id)
         }*/
     }
 
-    std::vector<double> equ;
+    std::vector<std::vector<double>> equ;
     if (nonoverlapResult.empty())
     {
         auto &&p = overlapResult.begin();
         auto &&point = p->second;
-        equ = lineEquation(shape1[point[0].first], shape1[point[0].second]);
+        equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
         std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+        std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
     }
     else
     {
-        auto &&p = nonoverlapResult.begin();
+        auto &&p = nonoverlapResult.rbegin();
         auto &&point = p->second;
-        equ = lineEquation(shape1[point[0].first], shape1[point[0].second]);
+        equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
         std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+        std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
     }
     return equ;
 }
@@ -397,6 +412,7 @@ void Drc::traverseRTree()
     std::cout << "Object Id: " << rtreeId[0].first << "," << rtreeId[0].second << std::endl;
     auto coord = obj1.getShape();
     printPolygon(coord);
+    auto centerPos = obj1.getCenterPos();
 
     double minX = bg::get<bg::min_corner, 0>(bbox);
     double minY = bg::get<bg::min_corner, 1>(bbox);
@@ -429,11 +445,27 @@ void Drc::traverseRTree()
         std::cout << "Object2 Id: " << rtreeId2[0].first << "," << rtreeId2[0].second << std::endl;
         auto coord = obj2.getShape();
         printPolygon(coord);
+        auto reCoord = obj2.getRelativeShape();
+        auto pos = obj2.getCenterPos();
+        if (obj2.getType() == ObjectType::PIN)
+        {
+            instance inst = m_db.getInstance(obj2.getInstId());
+            pos = point_2d{inst.getX(), inst.getY()};
+        }
+        auto co = points_2d{};
+        for (auto &&coor : reCoord)
+        {
+            co.push_back(point_2d{coor.m_x + pos.m_x, coor.m_y + pos.m_y});
+        }
+        std::cout << "relative coord" << std::endl;
+        printPolygon(reCoord);
+        std::cout << "relatvie coord + pos" << std::endl;
+        printPolygon(co);
 
         if (obj1.getNetId() != obj2.getNetId())
         {
-            std::vector<double> equ = buildRelation(rtreeId[0].second, v.second);
-            printEquation(equ);
+            std::vector<std::vector<double>> equ = buildRelation(rtreeId[0].second, v.second);
+            printInequalityEquation(equ[0], centerPos);
         }
         /*std::cout << "!!Overlap!!" << std::endl;
             if (boost::geometry::intersects(poly1, poly2)) {
@@ -790,16 +822,78 @@ std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2)
     else
     {
         equ.push_back(1);
-        equ.push_back(slope);
-        equ.push_back(b);
+        equ.push_back(-slope);
+        equ.push_back(-b);
     }
 
     return equ;
 }
 
+std::vector<std::vector<double>> Drc::lineEquation(point_2d &p1, point_2d &p2, point_2d &r1, point_2d &r2)
+{
+    std::vector<std::vector<double>> equs;
+    std::vector<double> e;
+    auto equ = lineEquation(p1, p2);
+    printEquation(equ);
+    e = equ;
+    e[2] = equ[2] + equ[0] * r1.m_y + equ[1] * r1.m_x;
+    equs.push_back(e);
+    e[2] = equ[2] + equ[0] * r2.m_y + equ[1] * r2.m_x;
+    equs.push_back(e);
+    return equs;
+}
+
 void Drc::printEquation(std::vector<double> &equ)
 {
-    std::cout << equ[0] << "y - " << equ[1] << "x - " << equ[2] << " > 0" << std::endl;
+    if (equ[0] != 0)
+        std::cout << equ[0] << "y ";
+    if (equ[1] > 0)
+        std::cout << "+ " << equ[1] << "x ";
+    else if (equ[1] < 0)
+        std::cout << equ[1] << "x ";
+
+    if (equ[2] > 0)
+        std::cout << "+ " << equ[2];
+    else if (equ[2] < 0)
+        std::cout << equ[2];
+    std::cout << " > 0 " << std::endl;
+}
+
+void Drc::printInequalityEquation(std::vector<double> &equ, point_2d &center)
+{
+    double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
+    if (equ[0] != 0)
+        std::cout << equ[0] << "y ";
+    if (equ[1] > 0)
+        std::cout << "+ " << equ[1] << "x ";
+    else if (equ[1] < 0)
+        std::cout << equ[1] << "x ";
+
+    if (equ[2] > 0)
+        std::cout << "+ " << equ[2];
+    else if (equ[2] < 0)
+        std::cout << equ[2];
+
+    if (value > 0)
+        std::cout << " < 0 " << std::endl;
+    else if (value < 0)
+        std::cout << " > 0 " << std::endl;
+}
+
+void Drc::printInequalityEquation(std::vector<std::vector<double>> &equs, point_2d &center)
+{
+    auto equ = equs[0];
+    printInequalityEquation(equ, center);
+    equ = equs[1];
+    printInequalityEquation(equ, center);
+}
+
+void Drc::printEquation(std::vector<std::vector<double>> &equs)
+{
+    auto equ = equs[0];
+    printEquation(equ);
+    equ = equs[1];
+    printEquation(equ);
 }
 
 void Drc::printPolygon(points_2d &coord)
@@ -809,7 +903,7 @@ void Drc::printPolygon(points_2d &coord)
     {
 
         std::cout << coord[i];
-        if (i != 8)
+        if (i != 7)
             std::cout << ", ";
     }
     std::cout << ")" << std::endl;
@@ -818,4 +912,10 @@ void Drc::printPolygon(points_2d &coord)
 void Drc::printPoint(point_2d &p)
 {
     std::cout << "Point({" << p.m_x << "," << p.m_y << "})" << std::endl;
+}
+
+void Drc::printSegment(points_2d &line)
+{
+    std::cout << "Segment: (" << line[0].m_x << "," << line[0].m_y << ")"
+              << "(" << line[1].m_x << "," << line[1].m_y << ")" << std::endl;
 }
