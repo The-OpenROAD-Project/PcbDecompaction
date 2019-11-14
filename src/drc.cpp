@@ -393,81 +393,89 @@ void Drc::traverseRTree()
     double MAX_DIST = 0.2;
     bg::model::point<double, 2, bg::cs::cartesian> point1;
     bg::model::point<double, 2, bg::cs::cartesian> point2;
-    //for(auto &&obj1 : m_objects) {
-    auto &&obj1 = m_objects[191];
-    if (obj1.getType() == ObjectType::PIN)
+    for (auto &&obj1 : m_objects)
     {
-        auto compId = obj1.getCompId();
-        auto instId = obj1.getInstId();
-        auto padId = obj1.getDBId();
-        component comp = m_db.getComponent(compId);
-        instance inst = m_db.getInstance(instId);
-        auto &pad = comp.getPadstack(padId);
-        std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
-        std::cout << " pad: " << pad.getName() << std::endl;
-    }
-    auto bbox = obj1.getBBox();
-    std::vector<std::pair<int, int>> &rtreeId = obj1.getRtreeId();
-    int rId = rtreeId[0].first;
-    std::cout << "Object Id: " << rtreeId[0].first << "," << rtreeId[0].second << std::endl;
-    auto coord = obj1.getShape();
-    printPolygon(coord);
-    auto centerPos = obj1.getCenterPos();
-
-    double minX = bg::get<bg::min_corner, 0>(bbox);
-    double minY = bg::get<bg::min_corner, 1>(bbox);
-    double maxX = bg::get<bg::max_corner, 0>(bbox);
-    double maxY = bg::get<bg::max_corner, 1>(bbox);
-    minX -= MAX_DIST;
-    minY -= MAX_DIST;
-    maxX += MAX_DIST;
-    maxY += MAX_DIST;
-    point1.set<0>(minX);
-    point1.set<1>(minY);
-    point2.set<0>(maxX);
-    point2.set<1>(maxY);
-    box query_box(point1, point2);
-    std::vector<value> result_s;
-    m_rtrees[rId].query(bgi::intersects(query_box), std::back_inserter(result_s));
-
-    std::cout << "spatial query box:" << std::endl;
-    std::cout << bg::wkt<box>(query_box) << std::endl;
-    std::cout << "spatial query result:" << std::endl;
-    BOOST_FOREACH (value const &v, result_s)
-    {
-        std::cout << bg::wkt<box>(v.first) << " - " << v.second << std::endl;
-
-        auto &&obj2 = m_objects[v.second];
-        std::deque<polygon_t> output;
-        polygon_t poly1 = obj1.getPoly();
-        polygon_t poly2 = obj2.getPoly();
-        std::vector<std::pair<int, int>> &rtreeId2 = obj2.getRtreeId();
-        std::cout << "Object2 Id: " << rtreeId2[0].first << "," << rtreeId2[0].second << std::endl;
-        auto coord = obj2.getShape();
-        printPolygon(coord);
-        auto reCoord = obj2.getRelativeShape();
-        auto pos = obj2.getCenterPos();
-        if (obj2.getType() == ObjectType::PIN)
+        auto &&obj = m_objects[191];
+        if (obj != obj1)
+            continue;
+        if (obj1.getType() == ObjectType::PIN)
         {
-            instance inst = m_db.getInstance(obj2.getInstId());
-            pos = point_2d{inst.getX(), inst.getY()};
+            auto compId = obj1.getCompId();
+            auto instId = obj1.getInstId();
+            auto padId = obj1.getDBId();
+            component comp = m_db.getComponent(compId);
+            instance inst = m_db.getInstance(instId);
+            auto &pad = comp.getPadstack(padId);
+            std::cout << "comp: " << comp.getName() << " inst: " << inst.getName();
+            std::cout << " pad: " << pad.getName() << std::endl;
         }
-        auto co = points_2d{};
-        for (auto &&coor : reCoord)
+        auto bbox = obj1.getBBox();
+        std::vector<std::pair<int, int>> &rtreeId = obj1.getRtreeId();
+        for (size_t i = 0; i < rtreeId.size(); ++i)
         {
-            co.push_back(point_2d{coor.m_x + pos.m_x, coor.m_y + pos.m_y});
-        }
-        std::cout << "relative coord" << std::endl;
-        printPolygon(reCoord);
-        std::cout << "relatvie coord + pos" << std::endl;
-        printPolygon(co);
 
-        if (obj1.getNetId() != obj2.getNetId())
-        {
-            std::vector<std::vector<double>> equ = buildRelation(rtreeId[0].second, v.second);
-            printInequalityEquation(equ[0], centerPos);
-        }
-        /*std::cout << "!!Overlap!!" << std::endl;
+            int rId = rtreeId[i].first;
+            std::cout << "Object Id: " << rtreeId[i].first << "," << rtreeId[i].second << std::endl;
+            auto coord = obj1.getShape();
+            printPolygon(coord);
+            auto centerPos = obj1.getCenterPos();
+
+            double minX = bg::get<bg::min_corner, 0>(bbox);
+            double minY = bg::get<bg::min_corner, 1>(bbox);
+            double maxX = bg::get<bg::max_corner, 0>(bbox);
+            double maxY = bg::get<bg::max_corner, 1>(bbox);
+            minX -= MAX_DIST;
+            minY -= MAX_DIST;
+            maxX += MAX_DIST;
+            maxY += MAX_DIST;
+            point1.set<0>(minX);
+            point1.set<1>(minY);
+            point2.set<0>(maxX);
+            point2.set<1>(maxY);
+            box query_box(point1, point2);
+            std::vector<value> result_s;
+            m_rtrees[rId].query(bgi::intersects(query_box), std::back_inserter(result_s));
+
+            std::cout << "spatial query box:" << std::endl;
+            std::cout << bg::wkt<box>(query_box) << std::endl;
+            std::cout << "spatial query result:" << std::endl;
+            BOOST_FOREACH (value const &v, result_s)
+            {
+                std::cout << bg::wkt<box>(v.first) << " - " << v.second << std::endl;
+
+                auto &&obj2 = m_objects[v.second];
+                std::deque<polygon_t> output;
+                polygon_t poly1 = obj1.getPoly();
+                polygon_t poly2 = obj2.getPoly();
+                std::vector<std::pair<int, int>> &rtreeId2 = obj2.getRtreeId();
+                std::cout << "Object2 Id: " << rtreeId2[0].first << "," << rtreeId2[0].second << std::endl;
+                auto coord = obj2.getShape();
+                printPolygon(coord);
+                auto reCoord = obj2.getRelativeShape();
+                auto pos = obj2.getCenterPos();
+                if (obj2.getType() == ObjectType::PIN)
+                {
+                    instance inst = m_db.getInstance(obj2.getInstId());
+                    pos = point_2d{inst.getX(), inst.getY()};
+                }
+                auto co = points_2d{};
+                for (auto &&coor : reCoord)
+                {
+                    co.push_back(point_2d{coor.m_x + pos.m_x, coor.m_y + pos.m_y});
+                }
+                std::cout << "relative coord" << std::endl;
+                printPolygon(reCoord);
+                std::cout << "relatvie coord + pos" << std::endl;
+                printPolygon(co);
+
+                if (obj1.getNetId() != obj2.getNetId())
+                {
+                    std::vector<std::vector<double>> equ = buildRelation(rtreeId[0].second, v.second);
+                    std::vector<double> eq = getInequalityEquation(equ[0], centerPos);
+                    obj2.addEquation(eq);
+                    printInequalityEquation(equ[0], centerPos);
+                }
+                /*std::cout << "!!Overlap!!" << std::endl;
             if (boost::geometry::intersects(poly1, poly2)) {
                 boost::geometry::intersection(poly1, poly2, output);
                 BOOST_FOREACH(polygon_t const& p, output)
@@ -496,6 +504,8 @@ void Drc::traverseRTree()
                     std::cout << std::endl;
                 }
             }*/
+            }
+        }
     }
 
     /*auto center = point_2d{0,0};
@@ -859,6 +869,21 @@ void Drc::printEquation(std::vector<double> &equ)
     std::cout << " > 0 " << std::endl;
 }
 
+//////////////////////
+//  equ[0] y + equ[1] x + equ[2] equ[3]
+//  equ[3]:0 denotes <=
+//  equ[3]:1 denotes >=
+std::vector<double> Drc::getInequalityEquation(std::vector<double> &equ, point_2d &center)
+{
+    std::vector<double> eq(equ);
+
+    double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
+    if (value > 0)
+        eq.push_back(0);
+    else if (value < 0)
+        eq.push_back(1);
+    return eq;
+}
 void Drc::printInequalityEquation(std::vector<double> &equ, point_2d &center)
 {
     double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
@@ -918,4 +943,105 @@ void Drc::printSegment(points_2d &line)
 {
     std::cout << "Segment: (" << line[0].m_x << "," << line[0].m_y << ")"
               << "(" << line[1].m_x << "," << line[1].m_y << ")" << std::endl;
+}
+
+//////////////////////////////////////
+//  equ[0] y + equ[1] x + equ[2] equ[3]
+//  equ[3]:0 denotes <=
+//  equ[3]:1 denotes >=
+void Drc::writeLPfile()
+{
+    std::ofstream file;
+    file.open("temp.lp");
+    file << "Minimize" << std::endl;
+    int count = 0, ini = 0;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.getType() == ObjectType::PIN)
+            continue;
+        auto &equs = obj.getEquations();
+        if (equs.empty())
+            continue;
+        int objId = obj.getId();
+        if (ini == 0)
+        {
+            file << "xt_" << objId << " + yt_" << objId;
+            ++ini;
+        }
+        else
+            file << " + xt_" << objId << " + yt_" << objId;
+        /*for (auto &&equ : equs)
+        {
+            file << " + s_" << count;
+            ++count;
+        }*/
+    }
+    count = 0;
+    file << std::endl;
+    file << std::endl;
+    file << "Subject To" << std::endl;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.getType() == ObjectType::PIN)
+            continue;
+        auto &equs = obj.getEquations();
+        if (equs.empty())
+            continue;
+        int objId = obj.getId();
+        for (auto &&equ : equs)
+        {
+            file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+            /*if (equ[3] == 0)
+                file << " - s_" << count;
+            else if (equ[3] == 1)
+                file << " + s_" << count;*/
+
+            if (equ[3] == 0)
+                file << " <= ";
+            else if (equ[3] == 1)
+                file << " >= ";
+            double value = -1 * equ[2];
+            file << value;
+
+            file << std::endl;
+            ++count;
+        }
+        auto &&center = obj.getCenterPos();
+        file << "x_" << objId << " - "
+             << "xt_" << objId << " <= " << center.m_x << std::endl;
+        file << "x_" << objId << " + "
+             << "xt_" << objId << " >= " << center.m_x << std::endl;
+        file << "y_" << objId << " - "
+             << "yt_" << objId << " <= " << center.m_y << std::endl;
+        file << "y_" << objId << " + "
+             << "yt_" << objId << " >= " << center.m_y << std::endl;
+    }
+
+    file << std::endl;
+    file << "Bounds" << std::endl;
+
+    count = 0;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.getType() == ObjectType::PIN)
+            continue;
+        int objId = obj.getId();
+        auto &equs = obj.getEquations();
+        if (equs.empty())
+            continue;
+        file << "x_" << objId << " >= 0" << std::endl;
+        // file << "xt_" << objId << " <= 1" << std::endl;
+        file << "y_" << objId << " >= 0" << std::endl;
+        // file << "yt_" << objId << " <= 1" << std::endl;
+
+        /*for (auto &&equ : equs)
+        {
+            file << "s_" << count << " >= 0" << std::endl;
+            ++count;
+        }*/
+    }
+
+    file << "End" << std::endl;
+
+    file.close();
 }

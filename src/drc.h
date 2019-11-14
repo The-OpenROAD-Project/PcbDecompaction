@@ -54,11 +54,14 @@ public:
     void printSegment(points_2d &line);
     void printPolygon(points_2d &coord);
     void printPoint(point_2d &);
+    std::vector<double> getInequalityEquation(std::vector<double> &, point_2d &);
+    void writeLPfile();
 
 private:
     std::vector<Object> m_objects;
     std::vector<bgi::rtree<value, bgi::quadratic<16>>> m_rtrees;
     kicadPcbDataBase &m_db;
+
     //std::vector<bgi::rtree< value, bgi::quadratic<16> >> m_rtrees;   //std::pair<int, box> value -> <object id, object bbox>
 };
 

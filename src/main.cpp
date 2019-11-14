@@ -5,7 +5,7 @@ int main(int argc, char *argv[])
 {
     std::string designName = argv[1];
     auto db = kicadPcbDataBase{designName};
-    //db.printKiCad();
+    db.printKiCad();
     //db.printNodes();
     //db.printComp();
     //db.printInst();
@@ -13,9 +13,11 @@ int main(int argc, char *argv[])
     /*db.printInst();
     db.printNetclass();*/
     //db.printUnconnectedPins();
-    Drc drc(db);
+    /*Drc drc(db);
     drc.createRTree();
     drc.traverseRTree();
+    drc.writeLPfile();
+    */
     //drc.printObject();
     //drc.printDrc();
     //db.printKiCad();
