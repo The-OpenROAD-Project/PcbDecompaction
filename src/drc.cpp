@@ -395,9 +395,9 @@ void Drc::traverseRTree()
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
     {
-        auto &&obj = m_objects[191];
-        if (obj != obj1)
-            continue;
+        //auto &&obj = m_objects[191];
+        //if (obj != obj1)
+        //    continue;
         if (obj1.getType() == ObjectType::PIN)
         {
             auto compId = obj1.getCompId();
@@ -957,8 +957,8 @@ void Drc::writeLPfile()
     int count = 0, ini = 0;
     for (auto &&obj : m_objects)
     {
-        if (obj.getType() == ObjectType::PIN)
-            continue;
+        //if (obj.getType() == ObjectType::PIN)
+        //    continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -970,11 +970,11 @@ void Drc::writeLPfile()
         }
         else
             file << " + xt_" << objId << " + yt_" << objId;
-        /*for (auto &&equ : equs)
+        for (auto &&equ : equs)
         {
-            file << " + s_" << count;
+            file << " + 10 s_" << count;
             ++count;
-        }*/
+        }
     }
     count = 0;
     file << std::endl;
@@ -982,8 +982,8 @@ void Drc::writeLPfile()
     file << "Subject To" << std::endl;
     for (auto &&obj : m_objects)
     {
-        if (obj.getType() == ObjectType::PIN)
-            continue;
+        //if (obj.getType() == ObjectType::PIN)
+        //    continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -991,10 +991,10 @@ void Drc::writeLPfile()
         for (auto &&equ : equs)
         {
             file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
-            /*if (equ[3] == 0)
+            if (equ[3] == 0)
                 file << " - s_" << count;
             else if (equ[3] == 1)
-                file << " + s_" << count;*/
+                file << " + s_" << count;
 
             if (equ[3] == 0)
                 file << " <= ";
@@ -1023,8 +1023,8 @@ void Drc::writeLPfile()
     count = 0;
     for (auto &&obj : m_objects)
     {
-        if (obj.getType() == ObjectType::PIN)
-            continue;
+        //if (obj.getType() == ObjectType::PIN)
+        //    continue;
         int objId = obj.getId();
         auto &equs = obj.getEquations();
         if (equs.empty())
@@ -1034,14 +1034,48 @@ void Drc::writeLPfile()
         file << "y_" << objId << " >= 0" << std::endl;
         // file << "yt_" << objId << " <= 1" << std::endl;
 
-        /*for (auto &&equ : equs)
+        for (auto &&equ : equs)
         {
             file << "s_" << count << " >= 0" << std::endl;
             ++count;
-        }*/
+        }
     }
 
     file << "End" << std::endl;
 
     file.close();
+}
+
+void Drc::readLPSolution()
+{
+    std::ifstream file("bm2_all.sol");
+    std::string line;
+    while (std::getline(file, line))
+    {
+        std::istringstream iss(line);
+        std::string objNo;
+        double coor;
+        iss >> objId >> coor;
+        if (objNo[0] == 's')
+        {
+        }
+        else if (objNo[0] == 'y')
+        {
+            if (objNo[1] == 't')
+            {
+            }
+            else if (objNo[1] == '_')
+            {
+            }
+        }
+        else if (objNo[0] == 'x')
+        {
+            if (objNo[1] == 't')
+            {
+            }
+            else if (objNo[1] == '_')
+            {
+            }
+        }
+    }
 }
