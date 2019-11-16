@@ -56,6 +56,8 @@ public:
     void printPoint(point_2d &);
     std::vector<double> getInequalityEquation(std::vector<double> &, point_2d &);
     void writeLPfile();
+    void readLPSolution();
+    void updateValue(int &, std::string, double &);
 
 private:
     std::vector<Object> m_objects;

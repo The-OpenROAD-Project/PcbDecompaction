@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     drc.createRTree();
     drc.traverseRTree();
     drc.writeLPfile();
+    drc.readLPSolution();
     
     //drc.printObject();
     //drc.printDrc();

@@ -1050,12 +1050,15 @@ void Drc::readLPSolution()
 {
     std::ifstream file("bm2_all.sol");
     std::string line;
+    std::getline(file, line); //objective function
     while (std::getline(file, line))
     {
         std::istringstream iss(line);
         std::string objNo;
+        int objId;
         double coor;
-        iss >> objId >> coor;
+        iss >> objNo >> coor;
+        //std::cout << objNo << " " << coor;
         if (objNo[0] == 's')
         {
         }
@@ -1066,6 +1069,8 @@ void Drc::readLPSolution()
             }
             else if (objNo[1] == '_')
             {
+                objId = std::stoi(objNo.substr(2));
+                updateValue(objId, "y", coor);
             }
         }
         else if (objNo[0] == 'x')
@@ -1075,7 +1080,51 @@ void Drc::readLPSolution()
             }
             else if (objNo[1] == '_')
             {
+                objId = std::stoi(objNo.substr(2));
+                updateValue(objId, "x", coor);
             }
         }
+
+        std::cout << objId << std::endl;
     }
+}
+
+void Drc::updateValue(int &objId, std::string type, double &coor)
+{
+    auto &&obj = m_objects[objId];
+    auto &&objType = obj.getType();
+    auto pos = obj.getPos();
+    if(objType == ObjectType::SEGMENT) {
+        if(type == "x"){
+            double x = obj.getX();
+            double diff = coor - x;
+            pos[0].m_x = pos[0].m_x + diff;
+            pos[1].m_x = pos[1].m_x + diff;
+        }
+        else if(type == "y"){
+            double y = obj.getY();
+            double diff = coor - y;
+            pos[0].m_y = pos[0].m_y + diff;
+            pos[1].m_y = pos[1].m_y + diff;
+        }
+    } else {
+        if(type == "x"){
+            double x = obj.getX();
+            double diff = coor - x;
+            pos[0].m_x = pos[0].m_x + diff;
+        }
+        else if(type == "y"){
+            double y = obj.getY();
+            double diff = coor - y;
+            pos[0].m_y = pos[0].m_y + diff;
+        }
+    }
+    obj.setPos(pos);
+}
+
+void Drc::updateDatabase()
+{
+    
+
+
 }
