@@ -57,11 +57,13 @@ public:
     std::vector<double> getInequalityEquation(std::vector<double> &, point_2d &);
     void writeLPfile();
     void readLPSolution();
-    void updateValue(int &, std::string, double &);
+    void updateValue(int &, std::string, double &, ObjectType);
+    void updateDatabase();
 
 private:
     std::vector<Object> m_objects;
     std::vector<bgi::rtree<value, bgi::quadratic<16>>> m_rtrees;
+    std::vector<point_2d> m_instPos;
     kicadPcbDataBase &m_db;
 
     //std::vector<bgi::rtree< value, bgi::quadratic<16> >> m_rtrees;   //std::pair<int, box> value -> <object id, object bbox>

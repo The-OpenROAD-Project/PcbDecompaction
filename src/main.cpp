@@ -16,12 +16,13 @@ int main(int argc, char *argv[])
     Drc drc(db);
     drc.createRTree();
     drc.traverseRTree();
-    drc.writeLPfile();
+    //drc.writeLPfile();
     drc.readLPSolution();
-    
+    drc.updateDatabase();
+
     //drc.printObject();
     //drc.printDrc();
-    //db.printKiCad();
+    db.printKiCad();
     //db.printClearanceDrc();
     //drc.testProjection();
 

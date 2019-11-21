@@ -955,66 +955,127 @@ void Drc::writeLPfile()
     file.open("temp.lp");
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
+    std::vector<bool> usedInst(m_db.getInstancesCount(), false);
     for (auto &&obj : m_objects)
     {
-        //if (obj.getType() == ObjectType::PIN)
-        //    continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
-        int objId = obj.getId();
-        if (ini == 0)
+        if (obj.getType() == ObjectType::PIN)
         {
-            file << "xt_" << objId << " + yt_" << objId;
-            ++ini;
+            continue;
+            int instId = obj.getInstId();
+            if (usedInst[instId])
+                continue;
+            usedInst[instId] = true;
+            if (ini == 0)
+            {
+                file << "xti_" << instId << " + yti_" << instId;
+                ++ini;
+            }
+            else
+
+                file << " + xti_" << instId << " + yti_" << instId;
+            for (auto &&equ : equs)
+            {
+                file << " + 10 s_" << count;
+                ++count;
+            }
         }
         else
-            file << " + xt_" << objId << " + yt_" << objId;
-        for (auto &&equ : equs)
         {
-            file << " + 10 s_" << count;
-            ++count;
+            int objId = obj.getId();
+            if (ini == 0)
+            {
+                file << "xt_" << objId << " + yt_" << objId;
+                ++ini;
+            }
+            else
+                file << " + xt_" << objId << " + yt_" << objId;
+            for (auto &&equ : equs)
+            {
+                file << " + 10 s_" << count;
+                ++count;
+            }
         }
     }
+
     count = 0;
     file << std::endl;
     file << std::endl;
     file << "Subject To" << std::endl;
     for (auto &&obj : m_objects)
     {
-        //if (obj.getType() == ObjectType::PIN)
-        //    continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
-        int objId = obj.getId();
-        for (auto &&equ : equs)
+        if (obj.getType() == ObjectType::PIN)
         {
-            file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
-            if (equ[3] == 0)
-                file << " - s_" << count;
-            else if (equ[3] == 1)
-                file << " + s_" << count;
+            continue;
+            int instId = obj.getInstId();
+            for (auto &&equ : equs)
+            {
+                file << equ[0] << " yi_" << instId << " + " << equ[1] << " xi_" << instId << " ";
+                if (equ[3] == 0)
+                    file << " - s_" << count;
+                else if (equ[3] == 1)
+                    file << " + s_" << count;
 
-            if (equ[3] == 0)
-                file << " <= ";
-            else if (equ[3] == 1)
-                file << " >= ";
-            double value = -1 * equ[2];
-            file << value;
+                if (equ[3] == 0)
+                    file << " <= ";
+                else if (equ[3] == 1)
+                    file << " >= ";
+                double value = -1 * equ[2];
+                file << value;
 
-            file << std::endl;
-            ++count;
+                file << std::endl;
+                ++count;
+            }
+
+            auto &&inst = m_db.getInstance(instId);
+            double x = inst.getX(), y = inst.getY();
+            file << "xi_" << instId << " - "
+                 << "xti_" << instId << " <= " << x << std::endl;
+            file << "xi_" << instId << " + "
+                 << "xti_" << instId << " >= " << x << std::endl;
+            file << "yi_" << instId << " - "
+                 << "yti_" << instId << " <= " << y << std::endl;
+            file << "yi_" << instId << " + "
+                 << "yti_" << instId << " >= " << y << std::endl;
         }
-        auto &&center = obj.getCenterPos();
-        file << "x_" << objId << " - "
-             << "xt_" << objId << " <= " << center.m_x << std::endl;
-        file << "x_" << objId << " + "
-             << "xt_" << objId << " >= " << center.m_x << std::endl;
-        file << "y_" << objId << " - "
-             << "yt_" << objId << " <= " << center.m_y << std::endl;
-        file << "y_" << objId << " + "
-             << "yt_" << objId << " >= " << center.m_y << std::endl;
+        else
+        {
+
+            int objId = obj.getId();
+            for (auto &&equ : equs)
+            {
+                file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+                if (equ[3] == 0)
+                    file << " - s_" << count;
+                else if (equ[3] == 1)
+                    file << " + s_" << count;
+
+                if (equ[3] == 0)
+                    file << " <= ";
+                else if (equ[3] == 1)
+                    file << " >= ";
+                double value = -1 * equ[2];
+                file << value;
+
+                file << std::endl;
+                ++count;
+            }
+
+            auto &&center = obj.getCenterPos();
+            file << "x_" << objId << " - "
+                 << "xt_" << objId << " <= " << center.m_x << std::endl;
+            file << "x_" << objId << " + "
+                 << "xt_" << objId << " >= " << center.m_x << std::endl;
+            file << "y_" << objId << " - "
+                 << "yt_" << objId << " <= " << center.m_y << std::endl;
+            file << "y_" << objId << " + "
+                 << "yt_" << objId << " >= " << center.m_y << std::endl;
+        }
     }
 
     file << std::endl;
@@ -1023,16 +1084,27 @@ void Drc::writeLPfile()
     count = 0;
     for (auto &&obj : m_objects)
     {
-        //if (obj.getType() == ObjectType::PIN)
-        //    continue;
-        int objId = obj.getId();
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
-        file << "x_" << objId << " >= 0" << std::endl;
-        // file << "xt_" << objId << " <= 1" << std::endl;
-        file << "y_" << objId << " >= 0" << std::endl;
-        // file << "yt_" << objId << " <= 1" << std::endl;
+        if (obj.getType() == ObjectType::PIN)
+        {
+            continue;
+            int instId = obj.getInstId();
+            file << "xi_" << instId << " >= 0" << std::endl;
+            // file << "xt_" << objId << " <= 1" << std::endl;
+            file << "yi_" << instId << " >= 0" << std::endl;
+        }
+        else
+        {
+
+            int objId = obj.getId();
+
+            file << "x_" << objId << " >= 0" << std::endl;
+            // file << "xt_" << objId << " <= 1" << std::endl;
+            file << "y_" << objId << " >= 0" << std::endl;
+            // file << "yt_" << objId << " <= 1" << std::endl;
+        }
 
         for (auto &&equ : equs)
         {
@@ -1048,7 +1120,8 @@ void Drc::writeLPfile()
 
 void Drc::readLPSolution()
 {
-    std::ifstream file("bm2_all.sol");
+    m_instPos.resize(m_db.getInstancesCount());
+    std::ifstream file("bm2_net.sol");
     std::string line;
     std::getline(file, line); //objective function
     while (std::getline(file, line))
@@ -1064,13 +1137,18 @@ void Drc::readLPSolution()
         }
         else if (objNo[0] == 'y')
         {
-            if (objNo[1] == 't')
+            if (objNo[1] == 't') //&& objNo[2] == 'i')
             {
             }
             else if (objNo[1] == '_')
             {
                 objId = std::stoi(objNo.substr(2));
-                updateValue(objId, "y", coor);
+                updateValue(objId, "y", coor, ObjectType::NONE);
+            }
+            else if (objNo[1] == 'i')
+            {
+                objId = std::stoi(objNo.substr(3));
+                updateValue(objId, "y", coor, ObjectType::PIN);
             }
         }
         else if (objNo[0] == 'x')
@@ -1081,42 +1159,81 @@ void Drc::readLPSolution()
             else if (objNo[1] == '_')
             {
                 objId = std::stoi(objNo.substr(2));
-                updateValue(objId, "x", coor);
+                updateValue(objId, "x", coor, ObjectType::NONE);
+            }
+            else if (objNo[1] == 'i')
+            {
+                objId = std::stoi(objNo.substr(3));
+                updateValue(objId, "x", coor, ObjectType::PIN);
             }
         }
 
-        std::cout << objId << std::endl;
+        //std::cout << objId << std::endl;
     }
 }
 
-void Drc::updateValue(int &objId, std::string type, double &coor)
+void Drc::updateValue(int &objId, std::string type, double &coor, ObjectType otype)
 {
+    if (otype == ObjectType::PIN)
+    {
+        if (type == "x")
+            m_instPos[objId].m_x = coor;
+        else if (type == "y")
+            m_instPos[objId].m_y = coor;
+        return;
+        int i;
+        for (i = 0; i < m_objects.size(); ++i)
+        {
+            auto &&obj = m_objects[i];
+            if (obj.getType() == ObjectType::PIN)
+            {
+                int instId = obj.getInstId();
+                if (instId == objId)
+                    break;
+            }
+        }
+        auto &&obj = m_objects[i];
+        if (type == "x")
+        {
+            obj.setX(coor);
+        }
+        else if (type == "y")
+        {
+            obj.setY(coor);
+        }
+        return;
+    }
     auto &&obj = m_objects[objId];
     auto &&objType = obj.getType();
     auto pos = obj.getPos();
-    if(objType == ObjectType::SEGMENT) {
-        if(type == "x"){
+    if (objType == ObjectType::SEGMENT)
+    {
+        if (type == "x")
+        {
             double x = obj.getX();
             double diff = coor - x;
             pos[0].m_x = pos[0].m_x + diff;
             pos[1].m_x = pos[1].m_x + diff;
         }
-        else if(type == "y"){
+        else if (type == "y")
+        {
             double y = obj.getY();
             double diff = coor - y;
             pos[0].m_y = pos[0].m_y + diff;
             pos[1].m_y = pos[1].m_y + diff;
         }
-    } else {
-        if(type == "x"){
+    }
+    else if (objType == ObjectType::VIA)
+    {
+        if (type == "x")
+        {
             double x = obj.getX();
-            double diff = coor - x;
-            pos[0].m_x = pos[0].m_x + diff;
+            pos[0].m_x = coor;
         }
-        else if(type == "y"){
+        else if (type == "y")
+        {
             double y = obj.getY();
-            double diff = coor - y;
-            pos[0].m_y = pos[0].m_y + diff;
+            pos[0].m_y = coor;
         }
     }
     obj.setPos(pos);
@@ -1124,7 +1241,36 @@ void Drc::updateValue(int &objId, std::string type, double &coor)
 
 void Drc::updateDatabase()
 {
-    
-
-
+    for (auto &&obj : m_objects)
+    {
+        auto &type = obj.getType();
+        if (type == ObjectType::PIN)
+            continue;
+        else if (type == ObjectType::SEGMENT)
+        {
+            int netId = obj.getNetId();
+            auto &&net = m_db.getNet(netId);
+            auto &&seg = net.getSegment(obj.getDBId());
+            auto pos = obj.getPos();
+            seg.setPosition(pos);
+        }
+        else if (type == ObjectType::VIA)
+        {
+            int netId = obj.getNetId();
+            auto &&net = m_db.getNet(netId);
+            auto &&via = net.getVia(obj.getDBId());
+            auto pos = obj.getPos();
+            via.setPosition(pos[0]);
+        }
+    }
+    /*
+    for (int i = 0; i < m_instPos.size(); ++i)
+    {
+        auto &&pos = m_instPos[i];
+        auto &&inst = m_db.getInstance(i);
+        double x = pos.m_x, y = pos.m_y;
+        inst.setX(x);
+        inst.setY(y);
+    }
+    */
 }
