@@ -8,7 +8,8 @@ int main(int argc, char *argv[])
     //db.printKiCad();
     //db.printNodes();
     //db.printComp();
-    //db.printInst();
+    db.printInst();
+    //db.printNodes();
     //db.printNet();
     /*db.printInst();
     db.printNetclass();*/
@@ -16,11 +17,14 @@ int main(int argc, char *argv[])
     Drc drc(db);
     drc.createRTree();
     drc.traverseRTree();
-    //drc.writeLPfile();
+
     drc.readLPSolution();
     drc.updateDatabase();
 
-    //drc.printObject();
+    drc.writeLPfile();
+    //
+
+    drc.printObject();
     //drc.printDrc();
     db.printKiCad();
     //db.printClearanceDrc();

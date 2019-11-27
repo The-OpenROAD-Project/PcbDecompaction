@@ -10,7 +10,7 @@ void Drc::createRTree()
     m_rtrees.resize(m_db.getNumCopperLayers());
     std::vector<net> nets = m_db.getNets();
     int id = 0;
-    double clearance = 0.1;
+    double clearance = 0.08;
     for (auto &&net : nets)
     {
         std::vector<Pin> pins = net.getPins();
@@ -23,8 +23,6 @@ void Drc::createRTree()
             auto width = s.getWidth();
             //std::cout << "width: " << width << std::endl;
             int layerId = m_db.getLayerId(s.getLayer());
-            if (layerId == 31)
-                continue;
             points_2d coord = segmentToOctagon(line, width, clearance);
             points_2d coordR = segmentToRelativeOctagon(line, width, clearance);
             //std::cout << "Segment: (" << line[0].m_x << "," << line[0].m_y << ")" << "(" << line[1].m_x << "," << line[1].m_y << ")" << std::endl;
@@ -805,6 +803,7 @@ void Drc::printObject()
     std::cout << "#####################################" << std::endl;
     for (auto &&obj : m_objects)
     {
+        obj.printObject();
         std::vector<std::pair<int, int>> ids = obj.getRtreeId();
         for (auto &&id : ids)
         {
@@ -1101,9 +1100,9 @@ void Drc::writeLPfile()
             int objId = obj.getId();
 
             file << "x_" << objId << " >= 0" << std::endl;
-            // file << "xt_" << objId << " <= 1" << std::endl;
+            file << "xt_" << objId << " <= 0.1" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
-            // file << "yt_" << objId << " <= 1" << std::endl;
+            file << "yt_" << objId << " <= 0.1" << std::endl;
         }
 
         for (auto &&equ : equs)
@@ -1121,7 +1120,7 @@ void Drc::writeLPfile()
 void Drc::readLPSolution()
 {
     m_instPos.resize(m_db.getInstancesCount());
-    std::ifstream file("bm2_net.sol");
+    std::ifstream file("bm2_net_3.sol");
     std::string line;
     std::getline(file, line); //objective function
     while (std::getline(file, line))
