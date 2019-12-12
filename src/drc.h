@@ -47,10 +47,12 @@ public:
     std::vector<std::vector<double>> buildRelation(int &, const int &);
     std::vector<double> lineEquation(point_2d &, point_2d &);
     std::vector<std::vector<double>> lineEquation(point_2d &, point_2d &, point_2d &, point_2d &);
+    std::vector<std::vector<double>> inequalityLineEquation(point_2d &, point_2d &, point_2d &, point_2d &, point_2d &);
     void printEquation(std::vector<double> &);
     void printEquation(std::vector<std::vector<double>> &);
     void printInequalityEquation(std::vector<double> &, point_2d &);
     void printInequalityEquation(std::vector<std::vector<double>> &, point_2d &);
+    void printInequalityEquation(std::vector<double> &);
     void printSegment(points_2d &line);
     void printPolygon(points_2d &coord);
     void printPoint(point_2d &);

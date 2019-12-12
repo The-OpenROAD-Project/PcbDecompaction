@@ -233,7 +233,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
     if (obj1.getType() == ObjectType::SEGMENT)
     {
         center.m_x = (pos[0].m_x + pos[1].m_x) / 2;
-        center.m_y = (pos[1].m_y + pos[1].m_y) / 2;
+        center.m_y = (pos[0].m_y + pos[1].m_y) / 2;
     }
     else
     {
@@ -366,21 +366,28 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
     }
 
     std::vector<std::vector<double>> equ;
+    auto centerPos = obj1.getCenterPos();
     if (nonoverlapResult.empty())
     {
-        auto &&p = overlapResult.begin();
+        auto &&p = overlapResult.begin(); //std::map<double, std::vector<std::pair<int, int>>> dist. {obj1.point, obj2.point}
         auto &&point = p->second;
-        equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
+        //equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
+        equ = inequalityLineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second], centerPos);
         std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
         std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
+        std::cout << "obj2 relative point: ";
+        printPolygon(reShape2);
     }
     else
     {
         auto &&p = nonoverlapResult.rbegin();
         auto &&point = p->second;
-        equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
+        //equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
+        equ = inequalityLineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second], centerPos);
         std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
         std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
+        std::cout << "obj2 relative point: ";
+        printPolygon(reShape2);
     }
     return equ;
 }
@@ -393,9 +400,9 @@ void Drc::traverseRTree()
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
     {
-        //auto &&obj = m_objects[191];
-        //if (obj != obj1)
-        //    continue;
+        auto &&obj = m_objects[24];
+        if (obj != obj1)
+            continue;
         if (obj1.getType() == ObjectType::PIN)
         {
             auto compId = obj1.getCompId();
@@ -450,28 +457,28 @@ void Drc::traverseRTree()
                 auto coord = obj2.getShape();
                 printPolygon(coord);
                 auto reCoord = obj2.getRelativeShape();
-                auto pos = obj2.getCenterPos();
+                auto centerPos2 = obj2.getCenterPos();
                 if (obj2.getType() == ObjectType::PIN)
                 {
                     instance inst = m_db.getInstance(obj2.getInstId());
-                    pos = point_2d{inst.getX(), inst.getY()};
+                    centerPos2 = point_2d{inst.getX(), inst.getY()};
                 }
                 auto co = points_2d{};
                 for (auto &&coor : reCoord)
                 {
-                    co.push_back(point_2d{coor.m_x + pos.m_x, coor.m_y + pos.m_y});
+                    co.push_back(point_2d{coor.m_x + centerPos2.m_x, coor.m_y + centerPos2.m_y});
                 }
-                std::cout << "relative coord" << std::endl;
+                /*std::cout << "relative coord" << std::endl;
                 printPolygon(reCoord);
                 std::cout << "relatvie coord + pos" << std::endl;
-                printPolygon(co);
+                printPolygon(co);*/
 
                 if (obj1.getNetId() != obj2.getNetId())
                 {
                     std::vector<std::vector<double>> equ = buildRelation(rtreeId[0].second, v.second);
-                    std::vector<double> eq = getInequalityEquation(equ[0], centerPos);
-                    obj2.addEquation(eq);
-                    printInequalityEquation(equ[0], centerPos);
+                    //std::vector<double> eq = getInequalityEquation(equ[0], centerPos);
+                    obj2.addEquation(equ[0]);
+                    printInequalityEquation(equ[0]);
                 }
                 /*std::cout << "!!Overlap!!" << std::endl;
             if (boost::geometry::intersects(poly1, poly2)) {
@@ -838,6 +845,39 @@ std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2)
     return equ;
 }
 
+std::vector<std::vector<double>> Drc::inequalityLineEquation(point_2d &p1, point_2d &p2, point_2d &r1, point_2d &r2, point_2d &center)
+{
+    std::cout << "Center point: " << center << std::endl;
+    std::vector<std::vector<double>> equs;
+    std::vector<double> e;
+    auto equ = lineEquation(p1, p2);
+    printEquation(equ);
+
+    double slope = -1 * equ[1];
+    double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
+    if (slope > 0)
+    {
+        if (value > 0)
+            equ.push_back(1);
+        else if (value < 0)
+            equ.push_back(0);
+    }
+    else
+    {
+        if (value > 0)
+            equ.push_back(1);
+        else if (value < 0)
+            equ.push_back(0);
+    }
+
+    e = equ;
+    e[2] = equ[2] + equ[0] * r1.m_y + equ[1] * r1.m_x;
+    equs.push_back(e);
+    e[2] = equ[2] + equ[0] * r2.m_y + equ[1] * r2.m_x;
+    equs.push_back(e);
+    return equs;
+}
+
 std::vector<std::vector<double>> Drc::lineEquation(point_2d &p1, point_2d &p2, point_2d &r1, point_2d &r2)
 {
     std::vector<std::vector<double>> equs;
@@ -870,22 +910,34 @@ void Drc::printEquation(std::vector<double> &equ)
 
 //////////////////////
 //  equ[0] y + equ[1] x + equ[2] equ[3]
-//  equ[3]:0 denotes <=
-//  equ[3]:1 denotes >=
+//  equ[3]:0 denotes >=
+//  equ[3]:1 denotes <=
 std::vector<double> Drc::getInequalityEquation(std::vector<double> &equ, point_2d &center)
 {
     std::vector<double> eq(equ);
-
+    double slope = -1 * equ[1];
     double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
-    if (value > 0)
-        eq.push_back(0);
-    else if (value < 0)
-        eq.push_back(1);
+    if (slope > 0)
+    {
+        if (value > 0)
+            eq.push_back(1);
+        else if (value < 0)
+            eq.push_back(0);
+    }
+    else
+    {
+        if (value > 0)
+            eq.push_back(0);
+        else if (value < 0)
+            eq.push_back(1);
+    }
     return eq;
 }
 void Drc::printInequalityEquation(std::vector<double> &equ, point_2d &center)
 {
+    std::cout << "center point : " << center << std::endl;
     double value = equ[0] * center.m_y + equ[1] * center.m_x + equ[2];
+    double slope = -1 * equ[1];
     if (equ[0] != 0)
         std::cout << equ[0] << "y ";
     if (equ[1] > 0)
@@ -898,10 +950,46 @@ void Drc::printInequalityEquation(std::vector<double> &equ, point_2d &center)
     else if (equ[2] < 0)
         std::cout << equ[2];
 
-    if (value > 0)
-        std::cout << " < 0 " << std::endl;
-    else if (value < 0)
-        std::cout << " > 0 " << std::endl;
+    if (slope > 0)
+    {
+        if (value > 0)
+            std::cout << " <= 0 " << std::endl;
+        else if (value < 0)
+            std::cout << " >= 0 " << std::endl;
+    }
+    else
+    {
+        if (value > 0)
+            std::cout << " >= 0 " << std::endl;
+        else if (value < 0)
+            std::cout << " <= 0 " << std::endl;
+    }
+}
+
+void Drc::printInequalityEquation(std::vector<double> &equ)
+{
+
+    double slope = -1 * equ[1];
+    if (equ[0] != 0)
+        std::cout << equ[0] << "y ";
+    if (equ[1] > 0)
+        std::cout << "+ " << equ[1] << "x ";
+    else if (equ[1] < 0)
+        std::cout << equ[1] << "x ";
+
+    if (equ[2] > 0)
+        std::cout << "+ " << equ[2];
+    else if (equ[2] < 0)
+        std::cout << equ[2];
+
+    if (equ[3] == 0)
+    {
+        std::cout << " >= 0" << std::endl;
+    }
+    else if (equ[3] == 1)
+    {
+        std::cout << "<= 0" << std::endl;
+    }
 }
 
 void Drc::printInequalityEquation(std::vector<std::vector<double>> &equs, point_2d &center)
@@ -946,8 +1034,8 @@ void Drc::printSegment(points_2d &line)
 
 //////////////////////////////////////
 //  equ[0] y + equ[1] x + equ[2] equ[3]
-//  equ[3]:0 denotes <=
-//  equ[3]:1 denotes >=
+//  equ[3]:0 denotes >=
+//  equ[3]:1 denotes <=
 void Drc::writeLPfile()
 {
     std::ofstream file;
@@ -1016,14 +1104,14 @@ void Drc::writeLPfile()
             {
                 file << equ[0] << " yi_" << instId << " + " << equ[1] << " xi_" << instId << " ";
                 if (equ[3] == 0)
-                    file << " - s_" << count;
-                else if (equ[3] == 1)
                     file << " + s_" << count;
+                else if (equ[3] == 1)
+                    file << " - s_" << count;
 
                 if (equ[3] == 0)
-                    file << " <= ";
-                else if (equ[3] == 1)
                     file << " >= ";
+                else if (equ[3] == 1)
+                    file << " <= ";
                 double value = -1 * equ[2];
                 file << value;
 
@@ -1050,14 +1138,13 @@ void Drc::writeLPfile()
             {
                 file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
                 if (equ[3] == 0)
-                    file << " - s_" << count;
-                else if (equ[3] == 1)
                     file << " + s_" << count;
-
-                if (equ[3] == 0)
-                    file << " <= ";
                 else if (equ[3] == 1)
+                    file << " - s_" << count;
+                if (equ[3] == 0)
                     file << " >= ";
+                else if (equ[3] == 1)
+                    file << " <= ";
                 double value = -1 * equ[2];
                 file << value;
 
@@ -1120,7 +1207,7 @@ void Drc::writeLPfile()
 void Drc::readLPSolution()
 {
     m_instPos.resize(m_db.getInstancesCount());
-    std::ifstream file("bm2_net_3.sol");
+    std::ifstream file("temp.sol");
     std::string line;
     std::getline(file, line); //objective function
     while (std::getline(file, line))
