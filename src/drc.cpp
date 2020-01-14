@@ -10,7 +10,8 @@ void Drc::createRTree()
     m_rtrees.resize(m_db.getNumCopperLayers());
     std::vector<net> nets = m_db.getNets();
     int id = 0;
-    double clearance = 0.08;
+    double clearance = (m_db.getLargestClearance() / 2);
+    std::cout << "clearance: " << clearance << std::endl;
     for (auto &&net : nets)
     {
         std::vector<Pin> pins = net.getPins();
@@ -105,7 +106,7 @@ void Drc::createRTree()
             auto &pad = comp.getPadstack(padId);
             auto pinPos = point_2d{};
             m_db.getPinPosition(pin, &pinPos);
-            points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), clearance, inst.getAngle(), pad.getAngle());
+            points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), clearance, inst.getAngle(), pad.getAngle(), pad.getPadShape());
             auto coordRe = points_2d{};
             m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
             std::cout << "net: " << net.getId() << " comp Name: " << comp.getName() << " inst Name: " << inst.getName() << " pad: " << pad.getName() << std::endl;
@@ -164,7 +165,7 @@ void Drc::createRTree()
         component comp = m_db.getComponent(compId);
         instance inst = m_db.getInstance(instId);
         auto &pad = comp.getPadstack(padId);
-        points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle());
+        points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle(), pad.getPadShape());
         auto coordRe = points_2d{};
         m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
         auto pinPos = point_2d{};
@@ -400,9 +401,9 @@ void Drc::traverseRTree()
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
     {
-        auto &&obj = m_objects[24];
+        /*auto &&obj = m_objects[24];
         if (obj != obj1)
-            continue;
+            continue;*/
         if (obj1.getType() == ObjectType::PIN)
         {
             auto compId = obj1.getCompId();
@@ -820,6 +821,12 @@ void Drc::printObject()
     }
 }
 
+void Drc::printObject(int &id)
+{
+    auto &&obj = m_objects[id];
+    obj.printObject();
+}
+
 std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2)
 {
     double y1 = p1.m_y, y2 = p2.m_y, x1 = p1.m_x, x2 = p2.m_x;
@@ -1039,7 +1046,7 @@ void Drc::printSegment(points_2d &line)
 void Drc::writeLPfile()
 {
     std::ofstream file;
-    file.open("temp.lp");
+    file.open("bm3_2.lp");
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
     std::vector<bool> usedInst(m_db.getInstancesCount(), false);
@@ -1050,7 +1057,7 @@ void Drc::writeLPfile()
             continue;
         if (obj.getType() == ObjectType::PIN)
         {
-            continue;
+            //continue;
             int instId = obj.getInstId();
             if (usedInst[instId])
                 continue;
@@ -1098,7 +1105,7 @@ void Drc::writeLPfile()
             continue;
         if (obj.getType() == ObjectType::PIN)
         {
-            continue;
+            //continue;
             int instId = obj.getInstId();
             for (auto &&equ : equs)
             {
@@ -1187,9 +1194,9 @@ void Drc::writeLPfile()
             int objId = obj.getId();
 
             file << "x_" << objId << " >= 0" << std::endl;
-            file << "xt_" << objId << " <= 0.1" << std::endl;
+            file << "xt_" << objId << " <= 0.3" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
-            file << "yt_" << objId << " <= 0.1" << std::endl;
+            file << "yt_" << objId << " <= 0.3" << std::endl;
         }
 
         for (auto &&equ : equs)
@@ -1207,7 +1214,7 @@ void Drc::writeLPfile()
 void Drc::readLPSolution()
 {
     m_instPos.resize(m_db.getInstancesCount());
-    std::ifstream file("temp.sol");
+    std::ifstream file("bm3_2.sol");
     std::string line;
     std::getline(file, line); //objective function
     while (std::getline(file, line))
@@ -1292,19 +1299,20 @@ void Drc::updateValue(int &objId, std::string type, double &coor, ObjectType oty
     auto &&obj = m_objects[objId];
     auto &&objType = obj.getType();
     auto pos = obj.getPos();
+    double diff = 0;
     if (objType == ObjectType::SEGMENT)
     {
         if (type == "x")
         {
             double x = obj.getX();
-            double diff = coor - x;
+            diff = coor - x;
             pos[0].m_x = pos[0].m_x + diff;
             pos[1].m_x = pos[1].m_x + diff;
         }
         else if (type == "y")
         {
             double y = obj.getY();
-            double diff = coor - y;
+            diff = coor - y;
             pos[0].m_y = pos[0].m_y + diff;
             pos[1].m_y = pos[1].m_y + diff;
         }
@@ -1314,14 +1322,18 @@ void Drc::updateValue(int &objId, std::string type, double &coor, ObjectType oty
         if (type == "x")
         {
             double x = obj.getX();
+            diff = coor - x;
             pos[0].m_x = coor;
         }
         else if (type == "y")
         {
             double y = obj.getY();
+            diff = coor - y;
             pos[0].m_y = coor;
         }
     }
+    //std::cout << "diff: " << diff << std::endl;
+    obj.updateShape(type, diff);
     obj.setPos(pos);
 }
 
@@ -1359,4 +1371,12 @@ void Drc::updateDatabase()
         inst.setY(y);
     }
     */
+}
+
+void Drc::clearEquations()
+{
+    for (auto &&obj : m_objects)
+    {
+        obj.clearEquation();
+    }
 }

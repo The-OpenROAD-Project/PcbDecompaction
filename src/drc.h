@@ -61,6 +61,8 @@ public:
     void readLPSolution();
     void updateValue(int &, std::string, double &, ObjectType);
     void updateDatabase();
+    void printObject(int &);
+    void clearEquations();
 
 private:
     std::vector<Object> m_objects;

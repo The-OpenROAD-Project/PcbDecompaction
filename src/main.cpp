@@ -6,28 +6,38 @@ int main(int argc, char *argv[])
     std::string designName = argv[1];
     auto db = kicadPcbDataBase{designName};
     //db.printLockedInst();
-    db.printKiCad();
+    //db.printKiCad();
     //db.printNodes();
     //db.printComp();
-    db.printInst();
+    //db.printInst();
     //db.printNodes();
     //db.printNet();
     /*db.printInst();
     db.printNetclass();*/
     //db.printUnconnectedPins();
-    /*Drc drc(db);
+
+    /*
+    Drc drc(db);
+    drc.clearEquations();
     drc.createRTree();
     drc.traverseRTree();
-
-    drc.readLPSolution();
-    drc.updateDatabase();
-
+    //int id = 891;
+    //drc.printObject(id);
+    //drc.printDrc();
+    //drc.readLPSolution();
+    //drc.updateDatabase();
+    //drc.printObject(id);
+    //drc.printDrc();
     drc.writeLPfile();
     //
 
     drc.printObject();
     //drc.printDrc();
-    db.printKiCad();*/
+    */
+    db.testInstAngle();
+
+    db.printKiCad();
+
     //db.printClearanceDrc();
     //drc.testProjection();
 
