@@ -57,17 +57,18 @@ public:
     void printPolygon(points_2d &coord);
     void printPoint(point_2d &);
     std::vector<double> getInequalityEquation(std::vector<double> &, point_2d &);
-    void writeLPfile();
-    void readLPSolution();
+    void writeLPfile(std::string &);
+    void readLPSolution(std::string &);
     void updateValue(int &, std::string, double &, ObjectType);
     void updateDatabase();
+    void updatePinsShapeAndPosition();
     void printObject(int &);
     void clearEquations();
 
 private:
     std::vector<Object> m_objects;
     std::vector<bgi::rtree<value, bgi::quadratic<16>>> m_rtrees;
-    std::vector<point_2d> m_instPos;
+    std::vector<point_2d> m_instDiffPos; //inst's diff position for each iteration
     kicadPcbDataBase &m_db;
 
     //std::vector<bgi::rtree< value, bgi::quadratic<16> >> m_rtrees;   //std::pair<int, box> value -> <object id, object bbox>

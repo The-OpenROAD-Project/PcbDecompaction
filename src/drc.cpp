@@ -298,7 +298,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         // Case2:
         //
         // *--------*   *---------*:sep
-        else if (project1[7].second < project2[0].second)
+        else if (project1[7].second <= project2[0].second)
         {
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
             nonoverlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
@@ -306,7 +306,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
             overlap = false;
             std::cout << "C" << dist << std::endl;
         }
-        else if (project2[7].second < project1[0].second)
+        else if (project2[7].second <= project1[0].second)
         {
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
             nonoverlapResult[dist].push_back(std::make_pair(project1[0].first, project1[1].first));
@@ -401,7 +401,7 @@ void Drc::traverseRTree()
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
     {
-        /*auto &&obj = m_objects[24];
+        /*auto &&obj = m_objects[755];
         if (obj != obj1)
             continue;*/
         if (obj1.getType() == ObjectType::PIN)
@@ -823,8 +823,13 @@ void Drc::printObject()
 
 void Drc::printObject(int &id)
 {
+    std::cout << "########## OBJECT " << id << " ############" << std::endl;
     auto &&obj = m_objects[id];
     obj.printObject();
+    auto equs = obj.getEquations();
+    for (auto &&equ : equs) {
+        printInequalityEquation(equ);
+    }
 }
 
 std::vector<double> Drc::lineEquation(point_2d &p1, point_2d &p2)
@@ -1043,10 +1048,10 @@ void Drc::printSegment(points_2d &line)
 //  equ[0] y + equ[1] x + equ[2] equ[3]
 //  equ[3]:0 denotes >=
 //  equ[3]:1 denotes <=
-void Drc::writeLPfile()
+void Drc::writeLPfile(std::string &fileName)
 {
     std::ofstream file;
-    file.open("bm3_2.lp");
+    file.open(fileName);
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
     std::vector<bool> usedInst(m_db.getInstancesCount(), false);
@@ -1211,10 +1216,10 @@ void Drc::writeLPfile()
     file.close();
 }
 
-void Drc::readLPSolution()
+void Drc::readLPSolution(std::string &fileName)
 {
-    m_instPos.resize(m_db.getInstancesCount());
-    std::ifstream file("bm3_2.sol");
+    m_instDiffPos.resize(m_db.getInstancesCount());
+    std::ifstream file(fileName);
     std::string line;
     std::getline(file, line); //objective function
     while (std::getline(file, line))
@@ -1224,14 +1229,16 @@ void Drc::readLPSolution()
         int objId;
         double coor;
         iss >> objNo >> coor;
-        //std::cout << objNo << " " << coor;
+        std::cout << objNo << " " << coor;
         if (objNo[0] == 's')
         {
         }
         else if (objNo[0] == 'y')
         {
-            if (objNo[1] == 't') //&& objNo[2] == 'i')
+            if (objNo[1] == 't' && objNo[2] == 'i')
             {
+                objId = std::stoi(objNo.substr(4));
+                updateValue(objId, "y", coor, ObjectType::PIN);
             }
             else if (objNo[1] == '_')
             {
@@ -1240,13 +1247,12 @@ void Drc::readLPSolution()
             }
             else if (objNo[1] == 'i')
             {
-                objId = std::stoi(objNo.substr(3));
-                updateValue(objId, "y", coor, ObjectType::PIN);
+                
             }
         }
         else if (objNo[0] == 'x')
         {
-            if (objNo[1] == 't')
+            if (objNo[1] == 'i')
             {
             }
             else if (objNo[1] == '_')
@@ -1254,9 +1260,9 @@ void Drc::readLPSolution()
                 objId = std::stoi(objNo.substr(2));
                 updateValue(objId, "x", coor, ObjectType::NONE);
             }
-            else if (objNo[1] == 'i')
+            else if (objNo[1] == 't' && objNo[2] == 'i')
             {
-                objId = std::stoi(objNo.substr(3));
+                objId = std::stoi(objNo.substr(4));
                 updateValue(objId, "x", coor, ObjectType::PIN);
             }
         }
@@ -1269,10 +1275,10 @@ void Drc::updateValue(int &objId, std::string type, double &coor, ObjectType oty
 {
     if (otype == ObjectType::PIN)
     {
-        if (type == "x")
-            m_instPos[objId].m_x = coor;
+        if (type == "x") 
+            m_instDiffPos[objId].m_x = coor;
         else if (type == "y")
-            m_instPos[objId].m_y = coor;
+            m_instDiffPos[objId].m_y = coor;
         return;
         int i;
         for (i = 0; i < m_objects.size(); ++i)
@@ -1361,16 +1367,17 @@ void Drc::updateDatabase()
             via.setPosition(pos[0]);
         }
     }
-    /*
-    for (int i = 0; i < m_instPos.size(); ++i)
+    
+    for (int i = 0; i < m_instDiffPos.size(); ++i)
     {
-        auto &&pos = m_instPos[i];
+        auto &&diffPos = m_instDiffPos[i];
         auto &&inst = m_db.getInstance(i);
-        double x = pos.m_x, y = pos.m_y;
+
+        auto instX = inst.getX(), instY = inst.getY();
+        double x = instX + diffPos.m_x, y = instY + diffPos.m_y;
         inst.setX(x);
         inst.setY(y);
     }
-    */
 }
 
 void Drc::clearEquations()
@@ -1378,5 +1385,26 @@ void Drc::clearEquations()
     for (auto &&obj : m_objects)
     {
         obj.clearEquation();
+    }
+}
+
+void Drc::updatePinsShapeAndPosition()
+{
+
+    for (auto &&obj : m_objects)
+    {
+        auto &&objType = obj.getType();
+        if(objType != ObjectType::PIN)
+            continue;
+        
+        int instId = obj.getInstId();
+        auto instDiffPos = m_instDiffPos[instId];
+        auto pinPos = obj.getPos();
+        
+        pinPos[0].m_x = pinPos[0].m_x + instDiffPos.m_x;
+        pinPos[0].m_y = pinPos[0].m_y + instDiffPos.m_y;
+        obj.updateShape("x", instDiffPos.m_x);
+        obj.updateShape("y", instDiffPos.m_x);
+
     }
 }
