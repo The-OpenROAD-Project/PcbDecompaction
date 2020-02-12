@@ -1,12 +1,13 @@
 #include <iostream>
 #include "drc.h"
 #include "shape.h"
+#include "gurobiSolver.h"
 
 int main(int argc, char *argv[])
 {
     std::string designName = argv[1];
-    std::string lpFile = "bm3_3.lp";
-    std::string solFile = "bm3_2.sol";
+    std::string lpFile = argv[2];
+    std::string solFile = argv[3];
     auto db = kicadPcbDataBase{designName};
     //db.printLockedInst();
     //db.printKiCad();
@@ -27,13 +28,15 @@ int main(int argc, char *argv[])
     //int id = 891;
     //drc.printObject(id);
     //drc.printDrc();
+    if(solFile != "N") {
     drc.readLPSolution(solFile);
     drc.updateDatabase();
     drc.updatePinsShapeAndPosition();
+    }
     //drc.printObject(id);
     //drc.printDrc();
-    int objId = 755;
-    drc.printObject(objId);
+    /*int objId = 755;
+    drc.printObject(objId);*/
     drc.writeLPfile(lpFile);
     //
 
@@ -41,7 +44,7 @@ int main(int argc, char *argv[])
     //drc.printDrc();
     
     
-    drc.printObject(objId);
+    //drc.printObject(objId);
     db.printKiCad();
 
     //db.printClearanceDrc();
@@ -55,6 +58,9 @@ int main(int argc, char *argv[])
     std::cout << "Larger " << (p1<=p2) << std::endl;*/
 
     db.printInst();
+
+    GurobiSolver model;
+    model.solver(lpFile, solFile);
 
 
     return 0;

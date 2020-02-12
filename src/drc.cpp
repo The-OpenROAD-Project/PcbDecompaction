@@ -7,7 +7,8 @@ bool comp(std::pair<int, point_2d> a, std::pair<int, point_2d> b)
 
 void Drc::createRTree()
 {
-    m_rtrees.resize(m_db.getNumCopperLayers());
+    m_numLayer = m_db.getNumCopperLayers();
+    m_rtrees.resize(m_numLayer);
     std::vector<net> nets = m_db.getNets();
     int id = 0;
     double clearance = (m_db.getLargestClearance() / 2);
@@ -46,16 +47,14 @@ void Drc::createRTree()
             obj.setRelativeShape(coordR);
             obj.setBBox(b);
             obj.setPos(s.getPos());
-            if (layerId == 0)
+            if (layerId >= m_numLayer)
             {
-                m_rtrees[0].insert(std::make_pair(b, id));
-                obj.setRTreeId(std::make_pair(0, id));
+                layerId = m_numLayer - 1;
             }
-            else if (layerId == 31)
-            {
-                m_rtrees[1].insert(std::make_pair(b, id));
-                obj.setRTreeId(std::make_pair(1, id));
-            }
+
+            m_rtrees[layerId].insert(std::make_pair(b, id));
+            obj.setRTreeId(std::make_pair(layerId, id));
+    
             m_objects.push_back(obj);
             ++id;
         }
@@ -78,7 +77,7 @@ void Drc::createRTree()
             }
             std::cout << std::endl;
             bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y));
-
+            std::vector<std::string> layers = v.getLayers();
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::VIA, v.getId(), v.getNetId(), -1, -1);
 
@@ -87,10 +86,15 @@ void Drc::createRTree()
             obj.setRelativeShape(coordRe);
             obj.setBBox(b);
             obj.setPos(pos);
-            m_rtrees[0].insert(std::make_pair(b, id));
-            obj.setRTreeId(std::make_pair(0, id));
-            m_rtrees[1].insert(std::make_pair(b, id));
-            obj.setRTreeId(std::make_pair(1, id));
+            int layerId;
+            for (auto layer : layers) {
+                layerId = m_db.getLayerId(layer);
+                if(layerId >= m_numLayer)
+                    layerId = m_numLayer - 1;
+                
+                m_rtrees[layerId].insert(std::make_pair(b, id));
+                obj.setRTreeId(std::make_pair(layerId, id));
+            }
             ++id;
             m_objects.push_back(obj);
         }
@@ -103,6 +107,7 @@ void Drc::createRTree()
             polygon_t polygon;
             component comp = m_db.getComponent(compId);
             instance inst = m_db.getInstance(instId);
+
             auto &pad = comp.getPadstack(padId);
             auto pinPos = point_2d{};
             m_db.getPinPosition(pin, &pinPos);
@@ -136,19 +141,16 @@ void Drc::createRTree()
             obj.setShape(coord);
             obj.setPoly(polygon);
             obj.setBBox(b);
+            obj.setLocked(inst.isLocked());
 
             for (auto &&layer : layers)
             {
-                if (layer == 0)
-                {
-                    m_rtrees[0].insert(std::make_pair(b, id));
-                    obj.setRTreeId(std::make_pair(0, id));
+                int layerId = layer;
+                if (layer >= m_numLayer) {
+                    layerId = m_numLayer - 1;
                 }
-                else if (layer == 31)
-                {
-                    m_rtrees[1].insert(std::make_pair(b, id));
-                    obj.setRTreeId(std::make_pair(1, id));
-                }
+                m_rtrees[layerId].insert(std::make_pair(b, id));
+                obj.setRTreeId(std::make_pair(layerId, id));
             }
             m_objects.push_back(obj);
             ++id;
@@ -192,19 +194,17 @@ void Drc::createRTree()
         obj.setRelativeShape(coordRe);
         obj.setPoly(polygon);
         obj.setBBox(b);
+        obj.setLocked(inst.isLocked());
+
 
         for (auto &&layer : layers)
         {
-            if (layer == 0)
-            {
-                m_rtrees[0].insert(std::make_pair(b, id));
-                obj.setRTreeId(std::make_pair(0, id));
+            int layerId = layer;
+            if (layer >= m_numLayer) {
+                layerId = m_numLayer - 1;
             }
-            else if (layer == 31)
-            {
-                m_rtrees[1].insert(std::make_pair(b, id));
-                obj.setRTreeId(std::make_pair(1, id));
-            }
+            m_rtrees[layerId].insert(std::make_pair(b, id));   
+            obj.setRTreeId(std::make_pair(layerId, id));
         }
         m_objects.push_back(obj);
         ++id;
@@ -252,6 +252,15 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         proCoord1 = projection(center, shape1, i * 45);
         proCoord2 = projection(center, shape2, i * 45);
 
+        std::cout << "shape1" << std::endl;
+        for(auto &&p : proCoord1) {
+            std::cout << p.m_x << " " << p.m_y << std::endl;
+        }
+        std::cout << "shape2" << std::endl;
+        for(auto &&p : proCoord2) {
+            std::cout << p.m_x << " " << p.m_y << std::endl;
+        }
+
         std::vector<std::pair<int, point_2d>> projectionVec;
         std::vector<std::pair<int, point_2d>> project1, project2;
 
@@ -270,6 +279,10 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         std::sort(projectionVec.begin(), projectionVec.end(), comp);
         std::sort(project1.begin(), project1.end(), comp);
         std::sort(project2.begin(), project2.end(), comp);
+        
+        for(auto &&p : project1) {
+            
+        }
 
         // Case1:
         //    obj1         obj2
@@ -278,7 +291,6 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         if (project1[0].second < project2[0].second && project2[0].second < project1[7].second &&
             project1[7].second < project2[7].second)
         {
-
             dist = project1[7].second.getDistance(project1[7].second, project2[0].second);
             overlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
             overlapResult[dist].push_back(std::make_pair(project2[0].first, project2[1].first));
@@ -317,18 +329,47 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         // Case3:
         //     *-----*
         // *-------------*
-        else if (project1[0].second < project2[0].second && project2[0].second < project1[7].second && project1[0].second < project2[7].second && project2[7].second < project1[7].second)
+        else if (project1[0].second <= project2[0].second && project2[0].second < project1[7].second && project1[0].second < project2[7].second && project2[7].second <= project1[7].second)
         {
-            dist = project2[0].second.getDistance(project2[0].second, project2[7].second);
-            overlap = true;
-            std::cout << "E" << dist << std::endl;
+            double dist1 = 0, dist2 = 0;
+            dist1 = project2[0].second.getDistance(project2[0].second, project1[7].second);
+            dist2 = project1[0].second.getDistance(project1[0].second, project2[7].second);
+              
+            overlap = true; 
+            if (dist1 <= dist2) {
+                overlapResult[dist1].push_back(std::make_pair(project1[6].first, project1[7].first));
+                overlapResult[dist1].push_back(std::make_pair(project2[0].first, project2[1].first));
+                std::cout << "E" << dist1 << std::endl;
+
+            } else {
+                overlapResult[dist2].push_back(std::make_pair(project1[0].first, project1[1].first));
+                overlapResult[dist2].push_back(std::make_pair(project2[6].first, project2[7].first));
+                std::cout << "E" << dist2 << std::endl;
+            }
+
         }
-        else if (project2[0].second < project1[0].second && project1[0].second < project2[7].second && project2[0] < project1[7] &&
-                 project1[7].second < project2[7].second)
+        else if (project2[0].second <= project1[0].second && project1[0].second < project2[7].second && project2[0].second < project1[7].second &&
+                 project1[7].second <= project2[7].second)
         {
-            dist = project1[0].second.getDistance(project1[0].second, project1[7].second);
+            double dist1 = 0, dist2 = 0;
+            dist1 = project1[0].second.getDistance(project1[0].second, project2[7].second);
+            dist2 = project2[0].second.getDistance(project2[0].second, project1[7].second);
+
+            
+            if (dist1 <= dist2) {
+                overlapResult[dist1].push_back(std::make_pair(project1[0].first, project1[1].first));
+                overlapResult[dist1].push_back(std::make_pair(project2[6].first, project2[7].first));
+                std::cout << "F" << dist1 << std::endl;
+
+            } else {
+                overlapResult[dist2].push_back(std::make_pair(project1[6].first, project1[7].first));
+                overlapResult[dist2].push_back(std::make_pair(project2[0].first, project2[1].first));
+                std::cout << "F" << dist2 << std::endl;
+            }
             overlap = true;
-            std::cout << "F" << dist << std::endl;
+        }
+        else {
+            std::cout << "no suitable" << std::endl;
         }
 
         //if(overlap)
@@ -373,6 +414,10 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         auto &&p = overlapResult.begin(); //std::map<double, std::vector<std::pair<int, int>>> dist. {obj1.point, obj2.point}
         auto &&point = p->second;
         //equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
+        std::cout << shape1[point[0].first] << std::endl;
+        std::cout << shape1[point[0].second] << std::endl;
+        std::cout << reShape2[point[1].first] << std::endl;
+        std::cout << reShape2[point[1].second] << std::endl;
         equ = inequalityLineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second], centerPos);
         std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
         std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
@@ -401,7 +446,7 @@ void Drc::traverseRTree()
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
     {
-        /*auto &&obj = m_objects[755];
+        /*auto &&obj = m_objects[437];
         if (obj != obj1)
             continue;*/
         if (obj1.getType() == ObjectType::PIN)
@@ -1051,12 +1096,14 @@ void Drc::printSegment(points_2d &line)
 void Drc::writeLPfile(std::string &fileName)
 {
     std::ofstream file;
+    int slackWeight = 100000;
     file.open(fileName);
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
     std::vector<bool> usedInst(m_db.getInstancesCount(), false);
     for (auto &&obj : m_objects)
     {
+        if(obj.isLocked()) continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1077,7 +1124,7 @@ void Drc::writeLPfile(std::string &fileName)
                 file << " + xti_" << instId << " + yti_" << instId;
             for (auto &&equ : equs)
             {
-                file << " + 10 s_" << count;
+                file << " + " << slackWeight << " s_" << count;
                 ++count;
             }
         }
@@ -1093,7 +1140,7 @@ void Drc::writeLPfile(std::string &fileName)
                 file << " + xt_" << objId << " + yt_" << objId;
             for (auto &&equ : equs)
             {
-                file << " + 10 s_" << count;
+                file << " + " << slackWeight << " s_" << count;
                 ++count;
             }
         }
@@ -1105,6 +1152,7 @@ void Drc::writeLPfile(std::string &fileName)
     file << "Subject To" << std::endl;
     for (auto &&obj : m_objects)
     {
+        if(obj.isLocked()) continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1182,6 +1230,7 @@ void Drc::writeLPfile(std::string &fileName)
     count = 0;
     for (auto &&obj : m_objects)
     {
+        if(obj.isLocked()) continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1199,9 +1248,9 @@ void Drc::writeLPfile(std::string &fileName)
             int objId = obj.getId();
 
             file << "x_" << objId << " >= 0" << std::endl;
-            file << "xt_" << objId << " <= 0.3" << std::endl;
+            //file << "xt_" << objId << " <= 1" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
-            file << "yt_" << objId << " <= 0.3" << std::endl;
+            //file << "yt_" << objId << " <= 1" << std::endl;
         }
 
         for (auto &&equ : equs)
@@ -1219,6 +1268,10 @@ void Drc::writeLPfile(std::string &fileName)
 void Drc::readLPSolution(std::string &fileName)
 {
     m_instDiffPos.resize(m_db.getInstancesCount());
+    for (auto &&instDiff : m_instDiffPos) {
+        instDiff.m_x = 0;
+        instDiff.m_y = 0;
+    }
     std::ifstream file(fileName);
     std::string line;
     std::getline(file, line); //objective function
