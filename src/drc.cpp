@@ -1471,3 +1471,12 @@ void Drc::updatePinsShapeAndPosition()
         obj.updateShape("y", instDiffPos.m_x);
     }
 }
+
+void Drc::maxLength()
+{
+    std::vector<net> nets = m_db.getNets();
+    for (auto &&net : nets)
+    {
+        std::vector<Segment> segments = net.getSegments();
+    }
+}
