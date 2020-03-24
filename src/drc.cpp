@@ -54,7 +54,7 @@ void Drc::createRTree()
 
             m_rtrees[layerId].insert(std::make_pair(b, id));
             obj.setRTreeId(std::make_pair(layerId, id));
-    
+
             m_objects.push_back(obj);
             ++id;
         }
@@ -87,11 +87,12 @@ void Drc::createRTree()
             obj.setBBox(b);
             obj.setPos(pos);
             int layerId;
-            for (auto layer : layers) {
+            for (auto layer : layers)
+            {
                 layerId = m_db.getLayerId(layer);
-                if(layerId >= m_numLayer)
+                if (layerId >= m_numLayer)
                     layerId = m_numLayer - 1;
-                
+
                 m_rtrees[layerId].insert(std::make_pair(b, id));
                 obj.setRTreeId(std::make_pair(layerId, id));
             }
@@ -146,7 +147,8 @@ void Drc::createRTree()
             for (auto &&layer : layers)
             {
                 int layerId = layer;
-                if (layer >= m_numLayer) {
+                if (layer >= m_numLayer)
+                {
                     layerId = m_numLayer - 1;
                 }
                 m_rtrees[layerId].insert(std::make_pair(b, id));
@@ -196,14 +198,14 @@ void Drc::createRTree()
         obj.setBBox(b);
         obj.setLocked(inst.isLocked());
 
-
         for (auto &&layer : layers)
         {
             int layerId = layer;
-            if (layer >= m_numLayer) {
+            if (layer >= m_numLayer)
+            {
                 layerId = m_numLayer - 1;
             }
-            m_rtrees[layerId].insert(std::make_pair(b, id));   
+            m_rtrees[layerId].insert(std::make_pair(b, id));
             obj.setRTreeId(std::make_pair(layerId, id));
         }
         m_objects.push_back(obj);
@@ -253,11 +255,13 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         proCoord2 = projection(center, shape2, i * 45);
 
         std::cout << "shape1" << std::endl;
-        for(auto &&p : proCoord1) {
+        for (auto &&p : proCoord1)
+        {
             std::cout << p.m_x << " " << p.m_y << std::endl;
         }
         std::cout << "shape2" << std::endl;
-        for(auto &&p : proCoord2) {
+        for (auto &&p : proCoord2)
+        {
             std::cout << p.m_x << " " << p.m_y << std::endl;
         }
 
@@ -279,9 +283,9 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         std::sort(projectionVec.begin(), projectionVec.end(), comp);
         std::sort(project1.begin(), project1.end(), comp);
         std::sort(project2.begin(), project2.end(), comp);
-        
-        for(auto &&p : project1) {
-            
+
+        for (auto &&p : project1)
+        {
         }
 
         // Case1:
@@ -334,19 +338,20 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
             double dist1 = 0, dist2 = 0;
             dist1 = project2[0].second.getDistance(project2[0].second, project1[7].second);
             dist2 = project1[0].second.getDistance(project1[0].second, project2[7].second);
-              
-            overlap = true; 
-            if (dist1 <= dist2) {
+
+            overlap = true;
+            if (dist1 <= dist2)
+            {
                 overlapResult[dist1].push_back(std::make_pair(project1[6].first, project1[7].first));
                 overlapResult[dist1].push_back(std::make_pair(project2[0].first, project2[1].first));
                 std::cout << "E" << dist1 << std::endl;
-
-            } else {
+            }
+            else
+            {
                 overlapResult[dist2].push_back(std::make_pair(project1[0].first, project1[1].first));
                 overlapResult[dist2].push_back(std::make_pair(project2[6].first, project2[7].first));
                 std::cout << "E" << dist2 << std::endl;
             }
-
         }
         else if (project2[0].second <= project1[0].second && project1[0].second < project2[7].second && project2[0].second < project1[7].second &&
                  project1[7].second <= project2[7].second)
@@ -355,20 +360,22 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
             dist1 = project1[0].second.getDistance(project1[0].second, project2[7].second);
             dist2 = project2[0].second.getDistance(project2[0].second, project1[7].second);
 
-            
-            if (dist1 <= dist2) {
+            if (dist1 <= dist2)
+            {
                 overlapResult[dist1].push_back(std::make_pair(project1[0].first, project1[1].first));
                 overlapResult[dist1].push_back(std::make_pair(project2[6].first, project2[7].first));
                 std::cout << "F" << dist1 << std::endl;
-
-            } else {
+            }
+            else
+            {
                 overlapResult[dist2].push_back(std::make_pair(project1[6].first, project1[7].first));
                 overlapResult[dist2].push_back(std::make_pair(project2[0].first, project2[1].first));
                 std::cout << "F" << dist2 << std::endl;
             }
             overlap = true;
         }
-        else {
+        else
+        {
             std::cout << "no suitable" << std::endl;
         }
 
@@ -872,7 +879,8 @@ void Drc::printObject(int &id)
     auto &&obj = m_objects[id];
     obj.printObject();
     auto equs = obj.getEquations();
-    for (auto &&equ : equs) {
+    for (auto &&equ : equs)
+    {
         printInequalityEquation(equ);
     }
 }
@@ -1103,7 +1111,8 @@ void Drc::writeLPfile(std::string &fileName)
     std::vector<bool> usedInst(m_db.getInstancesCount(), false);
     for (auto &&obj : m_objects)
     {
-        if(obj.isLocked()) continue;
+        if (obj.isLocked())
+            continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1152,7 +1161,8 @@ void Drc::writeLPfile(std::string &fileName)
     file << "Subject To" << std::endl;
     for (auto &&obj : m_objects)
     {
-        if(obj.isLocked()) continue;
+        if (obj.isLocked())
+            continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1230,7 +1240,8 @@ void Drc::writeLPfile(std::string &fileName)
     count = 0;
     for (auto &&obj : m_objects)
     {
-        if(obj.isLocked()) continue;
+        if (obj.isLocked())
+            continue;
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
@@ -1268,7 +1279,8 @@ void Drc::writeLPfile(std::string &fileName)
 void Drc::readLPSolution(std::string &fileName)
 {
     m_instDiffPos.resize(m_db.getInstancesCount());
-    for (auto &&instDiff : m_instDiffPos) {
+    for (auto &&instDiff : m_instDiffPos)
+    {
         instDiff.m_x = 0;
         instDiff.m_y = 0;
     }
@@ -1300,7 +1312,6 @@ void Drc::readLPSolution(std::string &fileName)
             }
             else if (objNo[1] == 'i')
             {
-                
             }
         }
         else if (objNo[0] == 'x')
@@ -1328,7 +1339,7 @@ void Drc::updateValue(int &objId, std::string type, double &coor, ObjectType oty
 {
     if (otype == ObjectType::PIN)
     {
-        if (type == "x") 
+        if (type == "x")
             m_instDiffPos[objId].m_x = coor;
         else if (type == "y")
             m_instDiffPos[objId].m_y = coor;
@@ -1420,7 +1431,7 @@ void Drc::updateDatabase()
             via.setPosition(pos[0]);
         }
     }
-    
+
     for (int i = 0; i < m_instDiffPos.size(); ++i)
     {
         auto &&diffPos = m_instDiffPos[i];
@@ -1447,17 +1458,16 @@ void Drc::updatePinsShapeAndPosition()
     for (auto &&obj : m_objects)
     {
         auto &&objType = obj.getType();
-        if(objType != ObjectType::PIN)
+        if (objType != ObjectType::PIN)
             continue;
-        
+
         int instId = obj.getInstId();
         auto instDiffPos = m_instDiffPos[instId];
         auto pinPos = obj.getPos();
-        
+
         pinPos[0].m_x = pinPos[0].m_x + instDiffPos.m_x;
         pinPos[0].m_y = pinPos[0].m_y + instDiffPos.m_y;
         obj.updateShape("x", instDiffPos.m_x);
         obj.updateShape("y", instDiffPos.m_x);
-
     }
 }
