@@ -1540,20 +1540,19 @@ void Drc::writeLPfileForBus(std::string &fileName)
         }
     }
 
+
     count = 0;
     file << std::endl;
     file << std::endl;
     file << "Subject To" << std::endl;
-    for (auto &&obj : m_objects)
-    {
-        if (obj.isLocked())
-            continue;
-        auto &equs = obj.getEquations();
-        if (equs.empty())
-            continue;
-        
-        if(obj.getType() == ObjectType::SEGMENT)
+    for (auto &&net : netToSegment) {
+        for (auto && seg: net)
         {
+            auto && obj = m_objects[seg];
+        
+            auto &equs = obj.getEquations();
+            if (equs.empty())
+                continue;
 
             int objId = obj.getId();
             for (auto &&equ : equs)
@@ -1585,40 +1584,8 @@ void Drc::writeLPfileForBus(std::string &fileName)
             file << "y_" << objId << " + "
                  << "yt_" << objId << " >= " << center.m_y << std::endl;
         }
-
-        else {
-            int objId = obj.getId();
-            for (auto &&equ : equs)
-            {
-
-                file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
-                if (equ[3] == 0)
-                    file << " + s_" << count;
-                else if (equ[3] == 1)
-                    file << " - s_" << count;
-                if (equ[3] == 0)
-                    file << " >= ";
-                else if (equ[3] == 1)
-                    file << " <= ";
-                double value = -1 * equ[2];
-                file << value;
-
-                file << std::endl;
-                ++count;
-            }
-
-            auto &&center = obj.getCenterPos();
-            file << "x_" << objId << " - "
-                 << "xt_" << objId << " <= " << center.m_x << std::endl;
-            file << "x_" << objId << " + "
-                 << "xt_" << objId << " >= " << center.m_x << std::endl;
-            file << "y_" << objId << " - "
-                 << "yt_" << objId << " <= " << center.m_y << std::endl;
-            file << "y_" << objId << " + "
-                 << "yt_" << objId << " >= " << center.m_y << std::endl;
-
-        }
     }
+
 
     for (auto &&net : netToSegment) 
     {
@@ -1643,27 +1610,18 @@ void Drc::writeLPfileForBus(std::string &fileName)
         auto &equs = obj.getEquations();
         if (equs.empty())
             continue;
-        if (obj.getType() == ObjectType::SEGMENT)
-        {
+        if (obj.getType() != ObjectType::SEGMENT)
+            continue;
 
-            int objId = obj.getId();
+        int objId = obj.getId();
 
-            file << "x_" << objId << " >= 0" << std::endl;
-            file << "xt_" << objId << " <= 3" << std::endl;
-            file << "y_" << objId << " >= 0" << std::endl;
-            file << "w_" << objId << " >= 0" << std::endl;
-            file << "w_" << objId << " <= 10" << std::endl;
-            file << "yt_" << objId << " <= 3" << std::endl;
-        }
-        else{
-            int objId = obj.getId();
-
-            file << "x_" << objId << " >= 0" << std::endl;
-            file << "xt_" << objId << " <= 3" << std::endl;
-            file << "y_" << objId << " >= 0" << std::endl;
-            file << "yt_" << objId << " <= 3" << std::endl;
-
-        }
+        file << "x_" << objId << " >= 0" << std::endl;
+        file << "xt_" << objId << " <= 3" << std::endl;
+        file << "y_" << objId << " >= 0" << std::endl;
+        file << "w_" << objId << " >= 0" << std::endl;
+        file << "w_" << objId << " <= 10" << std::endl;
+        file << "yt_" << objId << " <= 3" << std::endl;
+        
 
         for (auto &&equ : equs)
         {
