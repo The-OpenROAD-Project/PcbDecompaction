@@ -58,12 +58,14 @@ public:
     void printPoint(point_2d &);
     std::vector<double> getInequalityEquation(std::vector<double> &, point_2d &);
     void writeLPfile(std::string &);
+    void writeLPfileForBus(std::string &fileName);
     void readLPSolution(std::string &);
     void updateValue(int &, std::string, double &, ObjectType);
     void updateDatabase();
     void updatePinsShapeAndPosition();
     void printObject(int &);
     void clearEquations();
+    double maxLength();
 
 private:
     std::vector<Object> m_objects;

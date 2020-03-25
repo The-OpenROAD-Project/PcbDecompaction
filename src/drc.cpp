@@ -142,7 +142,7 @@ void Drc::createRTree()
             obj.setShape(coord);
             obj.setPoly(polygon);
             obj.setBBox(b);
-            obj.setLocked(inst.isLocked());
+            obj.setLocked(true); //inst.isLocked());
 
             for (auto &&layer : layers)
             {
@@ -196,7 +196,7 @@ void Drc::createRTree()
         obj.setRelativeShape(coordRe);
         obj.setPoly(polygon);
         obj.setBBox(b);
-        obj.setLocked(inst.isLocked());
+        obj.setLocked(true); //inst.isLocked());
 
         for (auto &&layer : layers)
         {
@@ -1472,11 +1472,187 @@ void Drc::updatePinsShapeAndPosition()
     }
 }
 
-void Drc::maxLength()
+double Drc::maxLength()
 {
     std::vector<net> nets = m_db.getNets();
+    double maxLength = 0;
     for (auto &&net : nets)
     {
+        double netLength = 0;
         std::vector<Segment> segments = net.getSegments();
+        for (auto &&seg : segments)
+        {
+            netLength += seg.getLength();
+        }
+        if (netLength > maxLength)
+        {
+            maxLength = netLength;
+        }
     }
+    return maxLength;
+}
+
+void Drc::writeLPfileForBus(std::string &fileName)
+{
+
+    std::vector< std::vector <int> > netToSegment;
+    netToSegment.resize(m_db.getNumNets());   
+    for (auto &&obj : m_objects)
+    {
+        if (obj.getType() != ObjectType::SEGMENT)
+            continue;
+        int netId = obj.getNetId();
+        int objId = obj.getId();
+        netToSegment[netId].push_back(objId);
+    }
+
+    std::ofstream file;
+    int slackWeight = 100000;
+    file.open(fileName);
+    file << "Minimize" << std::endl;
+    int count = 0, ini = 0;
+    double segWidth = 0.127;
+    double maxL = maxLength();
+
+    for (auto &&net : netToSegment) 
+    {
+        file << maxL;
+        for (auto && seg: net)
+        {
+            auto && obj = m_objects[seg];
+            int objId = obj.getId();
+            file << " - 1 - 7.874 w_" << objId;
+
+            file << " + xt_" << objId << " + yt_" << objId;
+            auto & equs = obj.getEquations();
+            for (auto &&equ : equs)
+            {
+                file << " + " << slackWeight << " s_" << count;
+                ++count;
+            }
+        }
+    }
+
+    count = 0;
+    file << std::endl;
+    file << std::endl;
+    file << "Subject To" << std::endl;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.isLocked())
+            continue;
+        auto &equs = obj.getEquations();
+        if (equs.empty())
+            continue;
+        
+        if(obj.getType() == ObjectType::SEGMENT)
+        {
+
+            int objId = obj.getId();
+            for (auto &&equ : equs)
+            {
+
+                file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+                if (equ[3] == 0)
+                    file << " + w_" << objId << " + s_" << count;
+                else if (equ[3] == 1)
+                    file << " - w_" << objId << " - s_" << count;
+                if (equ[3] == 0)
+                    file << " >= ";
+                else if (equ[3] == 1)
+                    file << " <= ";
+                double value = -1 * equ[2];
+                file << value;
+
+                file << std::endl;
+                ++count;
+            }
+
+            auto &&center = obj.getCenterPos();
+            file << "x_" << objId << " - "
+                 << "xt_" << objId << " <= " << center.m_x << std::endl;
+            file << "x_" << objId << " + "
+                 << "xt_" << objId << " >= " << center.m_x << std::endl;
+            file << "y_" << objId << " - "
+                 << "yt_" << objId << " <= " << center.m_y << std::endl;
+            file << "y_" << objId << " + "
+                 << "yt_" << objId << " >= " << center.m_y << std::endl;
+        }
+
+        else {
+            int objId = obj.getId();
+            for (auto &&equ : equs)
+            {
+
+                file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+                if (equ[3] == 0)
+                    file << " + s_" << count;
+                else if (equ[3] == 1)
+                    file << " - s_" << count;
+                if (equ[3] == 0)
+                    file << " >= ";
+                else if (equ[3] == 1)
+                    file << " <= ";
+                double value = -1 * equ[2];
+                file << value;
+
+                file << std::endl;
+                ++count;
+            }
+
+            auto &&center = obj.getCenterPos();
+            file << "x_" << objId << " - "
+                 << "xt_" << objId << " <= " << center.m_x << std::endl;
+            file << "x_" << objId << " + "
+                 << "xt_" << objId << " >= " << center.m_x << std::endl;
+            file << "y_" << objId << " - "
+                 << "yt_" << objId << " <= " << center.m_y << std::endl;
+            file << "y_" << objId << " + "
+                 << "yt_" << objId << " >= " << center.m_y << std::endl;
+
+        }
+    }
+
+    file << std::endl;
+    file << "Bounds" << std::endl;
+
+    count = 0;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.isLocked())
+            continue;
+        auto &equs = obj.getEquations();
+        if (equs.empty())
+            continue;
+        if (obj.getType() == ObjectType::SEGMENT)
+        {
+
+            int objId = obj.getId();
+
+            file << "x_" << objId << " >= 0" << std::endl;
+            //file << "xt_" << objId << " <= 1" << std::endl;
+            file << "y_" << objId << " >= 0" << std::endl;
+            file << "w_" << objId << " >= 0" << std::endl;
+            //file << "yt_" << objId << " <= 1" << std::endl;
+        }
+        else{
+            int objId = obj.getId();
+
+            file << "x_" << objId << " >= 0" << std::endl;
+            //file << "xt_" << objId << " <= 1" << std::endl;
+            file << "y_" << objId << " >= 0" << std::endl;
+            //file << "yt_" << objId << " <= 1" << std::endl;
+
+        }
+
+        for (auto &&equ : equs)
+        {
+            file << "s_" << count << " >= 0" << std::endl;
+            ++count;
+        }
+    }
+
+    file << "End" << std::endl;
+
+    file.close();
 }
