@@ -1516,7 +1516,14 @@ void Drc::writeLPfileForBus(std::string &fileName)
 
     for (auto &&net : netToSegment) 
     {
-        file << maxL;
+        if (ini = 0) {
+            file << maxL;
+            ++ini;
+        }
+        else {
+            file << " + " << maxL;
+        }
+        
         for (auto && seg: net)
         {
             auto && obj = m_objects[seg];
