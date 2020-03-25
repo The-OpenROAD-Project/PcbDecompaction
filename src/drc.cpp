@@ -1649,18 +1649,19 @@ void Drc::writeLPfileForBus(std::string &fileName)
             int objId = obj.getId();
 
             file << "x_" << objId << " >= 0" << std::endl;
-            //file << "xt_" << objId << " <= 1" << std::endl;
+            file << "xt_" << objId << " <= 3" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
             file << "w_" << objId << " >= 0" << std::endl;
-            //file << "yt_" << objId << " <= 1" << std::endl;
+            file << "w_" << objId << " <= 10" << std::endl;
+            file << "yt_" << objId << " <= 3" << std::endl;
         }
         else{
             int objId = obj.getId();
 
             file << "x_" << objId << " >= 0" << std::endl;
-            //file << "xt_" << objId << " <= 1" << std::endl;
+            file << "xt_" << objId << " <= 3" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
-            //file << "yt_" << objId << " <= 1" << std::endl;
+            file << "yt_" << objId << " <= 3" << std::endl;
 
         }
 
