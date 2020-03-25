@@ -1613,6 +1613,17 @@ void Drc::writeLPfileForBus(std::string &fileName)
         }
     }
 
+    for (auto &&net : netToSegment) 
+    {
+        file << maxL;
+        for (auto && seg: net)
+        {
+            auto && obj = m_objects[seg];
+            int objId = obj.getId();
+            file << " - 1 - 7.874 w_" << objId << " >= 0" << std::endl;;
+        }
+    }
+
     file << std::endl;
     file << "Bounds" << std::endl;
 
