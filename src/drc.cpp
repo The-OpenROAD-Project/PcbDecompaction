@@ -1516,6 +1516,7 @@ void Drc::writeLPfileForBus(std::string &fileName)
 
     for (auto &&net : netToSegment) 
     {
+        if (net.size() == 0) continue;
         if (ini = 0) {
             file << maxL;
             ++ini;
