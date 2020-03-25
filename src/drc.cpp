@@ -1620,8 +1620,9 @@ void Drc::writeLPfileForBus(std::string &fileName)
         {
             auto && obj = m_objects[seg];
             int objId = obj.getId();
-            file << " - 1 - 7.874 w_" << objId << " >= 0" << std::endl;;
+            file << " - 1 - 7.874 w_" << objId;
         }
+        file << << " >= 0" << std::endl;
     }
 
     file << std::endl;
