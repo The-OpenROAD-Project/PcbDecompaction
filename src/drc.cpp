@@ -1517,7 +1517,7 @@ void Drc::writeLPfileForBus(std::string &fileName)
     for (auto &&net : netToSegment) 
     {
         if (net.size() == 0) continue;
-        if (ini = 0) {
+        if (ini == 0) {
             file << maxL;
             ++ini;
         }
@@ -1546,7 +1546,9 @@ void Drc::writeLPfileForBus(std::string &fileName)
     file << std::endl;
     file << std::endl;
     file << "Subject To" << std::endl;
-    for (auto &&net : netToSegment) {
+    for (auto &&net : netToSegment) 
+    {
+        if (net.size() == 0) continue;
         for (auto && seg: net)
         {
             auto && obj = m_objects[seg];
@@ -1590,6 +1592,7 @@ void Drc::writeLPfileForBus(std::string &fileName)
 
     for (auto &&net : netToSegment) 
     {
+        if (net.size() == 0) continue;
         file << maxL;
         for (auto && seg: net)
         {
@@ -1604,32 +1607,31 @@ void Drc::writeLPfileForBus(std::string &fileName)
     file << "Bounds" << std::endl;
 
     count = 0;
-    for (auto &&obj : m_objects)
+
+    for (auto &&net : netToSegment) 
     {
-        if (obj.isLocked())
-            continue;
-        auto &equs = obj.getEquations();
-        if (equs.empty())
-            continue;
-        if (obj.getType() != ObjectType::SEGMENT)
-            continue;
-
-        int objId = obj.getId();
-
-        file << "x_" << objId << " >= 0" << std::endl;
-        file << "xt_" << objId << " <= 3" << std::endl;
-        file << "y_" << objId << " >= 0" << std::endl;
-        file << "w_" << objId << " >= 0" << std::endl;
-        file << "w_" << objId << " <= 10" << std::endl;
-        file << "yt_" << objId << " <= 3" << std::endl;
-        
-
-        for (auto &&equ : equs)
+        if (net.size() == 0) continue;
+        for (auto && seg: net)
         {
-            file << "s_" << count << " >= 0" << std::endl;
-            ++count;
+            auto && obj = m_objects[seg];
+            int objId = obj.getId();
+            file << "x_" << objId << " >= 0" << std::endl;
+            file << "xt_" << objId << " <= 3" << std::endl;
+            file << "y_" << objId << " >= 0" << std::endl;
+            file << "w_" << objId << " >= 0" << std::endl;
+            file << "w_" << objId << " <= 10" << std::endl;
+            file << "yt_" << objId << " <= 3" << std::endl;
+        
+            auto & equs = obj.getEquations();
+            for (auto &&equ : equs)
+            {
+                file << "s_" << count << " >= 0" << std::endl;
+                ++count;
+            }
+
         }
     }
+
 
     file << "End" << std::endl;
 
