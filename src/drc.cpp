@@ -254,7 +254,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         proCoord1 = projection(center, shape1, i * 45);
         proCoord2 = projection(center, shape2, i * 45);
 
-        std::cout << "shape1" << std::endl;
+        /*std::cout << "shape1" << std::endl;
         for (auto &&p : proCoord1)
         {
             std::cout << p.m_x << " " << p.m_y << std::endl;
@@ -263,7 +263,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         for (auto &&p : proCoord2)
         {
             std::cout << p.m_x << " " << p.m_y << std::endl;
-        }
+        }*/
 
         std::vector<std::pair<int, point_2d>> projectionVec;
         std::vector<std::pair<int, point_2d>> project1, project2;
@@ -414,6 +414,7 @@ std::vector<std::vector<double>> Drc::buildRelation(int &obj1Id, const int &obj2
         }*/
     }
 
+    int obj1Angle = obj1.getAngle();
     std::vector<std::vector<double>> equ;
     auto centerPos = obj1.getCenterPos();
     if (nonoverlapResult.empty())
@@ -456,6 +457,9 @@ void Drc::traverseRTree()
         /*auto &&obj = m_objects[437];
         if (obj != obj1)
             continue;*/
+        int layer = obj1.getLayer();
+        if (layer != 0)
+            continue;
         if (obj1.getType() == ObjectType::PIN)
         {
             auto compId = obj1.getCompId();
@@ -1495,8 +1499,8 @@ double Drc::maxLength()
 void Drc::writeLPfileForBus(std::string &fileName)
 {
 
-    std::vector< std::vector <int> > netToSegment;
-    netToSegment.resize(m_db.getNumNets());   
+    std::vector<std::vector<int>> netToSegment;
+    netToSegment.resize(m_db.getNumNets());
     for (auto &&obj : m_objects)
     {
         if (obj.getType() != ObjectType::SEGMENT)
@@ -1514,45 +1518,73 @@ void Drc::writeLPfileForBus(std::string &fileName)
     double segWidth = 0.127;
     double maxL = maxLength();
 
-    for (auto &&net : netToSegment) 
+    for (auto &&net : netToSegment)
     {
-        if (net.size() == 0) continue;
-        if (ini == 0) {
+        if (net.size() == 0)
+            continue;
+        if (ini == 0)
+        {
             file << maxL;
             ++ini;
         }
-        else {
+        else
+        {
             file << " + " << maxL;
         }
-        
-        for (auto && seg: net)
+
+        for (auto &&seg : net)
         {
-            auto && obj = m_objects[seg];
+            auto &&obj = m_objects[seg];
             int objId = obj.getId();
-            file << " - 1 - 7.874 w_" << objId;
+            auto &equs = obj.getEquations();
+            bool leftWidth = false, rightWidth = false;
+            for (auto &equ : equs)
+            {
+                if (equ[4] == 1)
+                    rightWidth = true;
+                else if (equ[4] == 0)
+                    leftWidth = true;
+            }
+
+            if (rightWidth && leftWidth)
+            {
+                file << " - 1 - 7.874 w_r_" << objId << " - 7.874 w_l_" << objId;
+            }
+            else if (rightWidth && !leftWidth)
+            {
+                file << " - 1 - 7.874 w_r_" << objId;
+            }
+            else if (!rightWidth && leftWidth)
+            {
+                file << " - 1 - 7.874 w_l_" << objId;
+            }
+            else
+            {
+                file << " - 1";
+            }
 
             file << " + xt_" << objId << " + yt_" << objId;
-            auto & equs = obj.getEquations();
+            /*auto &equs = obj.getEquations();
             for (auto &&equ : equs)
             {
                 file << " + " << slackWeight << " s_" << count;
                 ++count;
-            }
+            }*/
         }
     }
-
 
     count = 0;
     file << std::endl;
     file << std::endl;
     file << "Subject To" << std::endl;
-    for (auto &&net : netToSegment) 
+    for (auto &&net : netToSegment)
     {
-        if (net.size() == 0) continue;
-        for (auto && seg: net)
+        if (net.size() == 0)
+            continue;
+        for (auto &&seg : net)
         {
-            auto && obj = m_objects[seg];
-        
+            auto &&obj = m_objects[seg];
+
             auto &equs = obj.getEquations();
             if (equs.empty())
                 continue;
@@ -1562,10 +1594,15 @@ void Drc::writeLPfileForBus(std::string &fileName)
             {
 
                 file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
-                if (equ[3] == 0)
-                    file << " + w_" << objId << " + s_" << count;
+
+                /*if (equ[3] == 0)
+                    file << " + s_" << count;
                 else if (equ[3] == 1)
-                    file << " - w_" << objId << " - s_" << count;
+                    file << " - s_" << count;*/
+                if (equ[4] == 1)
+                    file << " + w_r_" << objId;
+                else if (equ[4] == 0)
+                    file << " - w_l_" << objId;
                 if (equ[3] == 0)
                     file << " >= ";
                 else if (equ[3] == 1)
@@ -1589,16 +1626,41 @@ void Drc::writeLPfileForBus(std::string &fileName)
         }
     }
 
-
-    for (auto &&net : netToSegment) 
+    for (auto &&net : netToSegment)
     {
-        if (net.size() == 0) continue;
+        if (net.size() == 0)
+            continue;
         file << maxL;
-        for (auto && seg: net)
+        for (auto &&seg : net)
         {
-            auto && obj = m_objects[seg];
+            auto &&obj = m_objects[seg];
             int objId = obj.getId();
-            file << " - 1 - 7.874 w_" << objId;
+            auto &equs = obj.getEquations();
+            bool leftWidth = false, rightWidth = false;
+            for (auto &equ : equs)
+            {
+                if (equ[4] == 1)
+                    rightWidth = true;
+                else if (equ[4] == 0)
+                    leftWidth = true;
+            }
+
+            if (rightWidth && leftWidth)
+            {
+                file << " - 1 - 7.874 w_r_" << objId << " - 7.874 w_l_" << objId;
+            }
+            else if (rightWidth && !leftWidth)
+            {
+                file << " - 1 - 7.874 w_r_" << objId;
+            }
+            else if (!rightWidth && leftWidth)
+            {
+                file << " - 1 - 7.874 w_l_" << objId;
+            }
+            else
+            {
+                file << " - 1";
+            }
         }
         file << " >= 0" << std::endl;
     }
@@ -1608,32 +1670,96 @@ void Drc::writeLPfileForBus(std::string &fileName)
 
     count = 0;
 
-    for (auto &&net : netToSegment) 
+    for (auto &&net : netToSegment)
     {
-        if (net.size() == 0) continue;
-        for (auto && seg: net)
+        if (net.size() == 0)
+            continue;
+        for (auto &&seg : net)
         {
-            auto && obj = m_objects[seg];
+            auto &&obj = m_objects[seg];
             int objId = obj.getId();
             file << "x_" << objId << " >= 0" << std::endl;
             file << "xt_" << objId << " <= 3" << std::endl;
             file << "y_" << objId << " >= 0" << std::endl;
-            file << "w_" << objId << " >= 0" << std::endl;
-            file << "w_" << objId << " <= 10" << std::endl;
+            //file << "w_" << objId << " >= 0" << std::endl;
+            //file << "w_" << objId << " <= 10" << std::endl;
             file << "yt_" << objId << " <= 3" << std::endl;
-        
-            auto & equs = obj.getEquations();
-            for (auto &&equ : equs)
+
+            auto &equs = obj.getEquations();
+            for (auto &equ : equs)
+            {
+                if (equ[4] == 1)
+                {
+                    file << "w_r_" << objId << " >= 0" << std::endl;
+                    file << "w_r_" << objId << " <= 10" << std::endl;
+                }
+                else if (equ[4] == 0)
+                {
+                    file << "w_l_" << objId << " >= 0" << std::endl;
+                    file << "w_l_" << objId << " <= 10" << std::endl;
+                }
+            }
+
+            /*for (auto &&equ : equs)
             {
                 file << "s_" << count << " >= 0" << std::endl;
                 ++count;
-            }
-
+            }*/
         }
     }
-
 
     file << "End" << std::endl;
 
     file.close();
+}
+
+void Drc::addWidthToBusSegmentEquation()
+{
+    for (auto &&obj : m_objects)
+    {
+        //if(!obj.isBus()) continue;
+        auto &equs = obj.getEquations();
+        int angle = obj.getAngle();
+        for (auto &&equ : equs)
+        {
+            int slope;
+            if (equ[0] == 0)
+                slope = 10000;
+            else
+                slope = equ[1] / equ[0];
+
+            if (angle == 0 && slope == 0)
+            {
+                if (equ[3] == 1)
+                    equ.push_back(1); //rigth width
+                else
+                    equ.push_back(0); //left width
+            }
+            else if (angle == 45 && slope == 1)
+            {
+                if (equ[3] == 1)
+                    equ.push_back(1);
+                else
+                    equ.push_back(0);
+            }
+            else if (angle == 90 && slope == 10000)
+            {
+                if (equ[3] == 1)
+                    equ.push_back(1);
+                else
+                    equ.push_back(0);
+            }
+            else if (angle == 135 && slope == -1)
+            {
+                if (equ[3] == 1)
+                    equ.push_back(1);
+                else
+                    equ.push_back(0);
+            }
+            else
+            {
+                equ.push_back(-1);
+            }
+        }
+    }
 }

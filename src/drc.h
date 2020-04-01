@@ -65,6 +65,7 @@ public:
     void updatePinsShapeAndPosition();
     void printObject(int &);
     void clearEquations();
+    void addWidthToBusSegmentEquation();
     double maxLength();
 
 private:
