@@ -14,6 +14,11 @@ set(PCBDRC_HOME ${PROJECT_SOURCE_DIR} )
 set(KICADPCB_HOME
   ${PROJECT_SOURCE_DIR}/module/kicadPcb
 )
+set(GUROBI_HOME
+   ~/gurobi901/linux64
+)
+
+
 
 add_subdirectory(${KICADPCB_HOME})
 
@@ -21,6 +26,7 @@ find_package(Boost REQUIRED)
 
 set (PCBDRC_SRC 
     src/drc.cpp
+    src/gurobiSolver.cpp
     #src/GridBasedRouter.cpp
     #src/plotter.cpp
     #src/globalParam.cpp
@@ -28,6 +34,7 @@ set (PCBDRC_SRC
 
 set (PCBDRC_HEADER
     src/drc.h
+    src/gurobiSolver.h
     #src/object.h
     #src/GridBasedRouter.h
     #src/plotter.h
@@ -41,6 +48,7 @@ set (PCBDRC_HEADER
 include_directories(
     ${Boost_INCLUDE_DIR}
     ${KICADPCB_HOME}/src
+    ${GUROBI_HOME}/include
   )
 
 ############################################################
@@ -69,6 +77,9 @@ add_dependencies( pcbdrc kicadpcbparserlib )
 target_link_libraries( pcbdrc
   pcbdrclib
   kicadpcbparserlib
+  /home1/yenyi/gurobi901/linux64/lib/libgurobi_c++.a
+  # ${GUROBI_HOME}/lib/libgurobi_c++.a
+  ${GUROBI_HOME}/lib/libgurobi90.so
 )
 
 ############################################################
