@@ -40,7 +40,7 @@ bool GurobiSolver::solver(string lpFileName, string solFileName) {
             int cols = model.get(GRB_IntAttr_NumVars);
             for (int j = 0; j < cols; j++) {
                 GRBVar v = fvars[j];
-                cout << v.get(GRB_StringAttr_VarName) << " "
+                file << v.get(GRB_StringAttr_VarName) << " "
                      << v.get(GRB_DoubleAttr_X) << endl;
             }
             file.close();
