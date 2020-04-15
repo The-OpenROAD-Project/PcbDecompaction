@@ -297,7 +297,8 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             overlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
             overlapResult[dist].push_back(std::make_pair(project2[0].first, project2[1].first));
             overlap = true;
-            std::cout << "A" << dist << std::endl;
+            if (m_verbose)
+                std::cout << "intersect1: " << dist << std::endl;
         }
         else if (project2[0].second < project1[0].second && project1[0].second < project2[7].second &&
                  project2[7].second < project1[7].second)
@@ -307,7 +308,8 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             overlapResult[dist].push_back(std::make_pair(project1[0].first, project1[1].first));
             overlapResult[dist].push_back(std::make_pair(project2[6].first, project2[7].first));
             overlap = true;
-            std::cout << "B" << dist << std::endl;
+            if (m_verbose)
+                std::cout << "intersect2: " << dist << std::endl;
         }
         // Case2:
         //
@@ -318,7 +320,8 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             nonoverlapResult[dist].push_back(std::make_pair(project1[6].first, project1[7].first));
             nonoverlapResult[dist].push_back(std::make_pair(project2[0].first, project2[1].first));
             overlap = false;
-            std::cout << "C" << dist << std::endl;
+            if (m_verbose)
+                std::cout << "nonoverlap1: " << dist << std::endl;
         }
         else if (project2[7].second <= project1[0].second)
         {
@@ -326,7 +329,8 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             nonoverlapResult[dist].push_back(std::make_pair(project1[0].first, project1[1].first));
             nonoverlapResult[dist].push_back(std::make_pair(project2[6].first, project2[7].first));
             overlap = false;
-            std::cout << "D" << dist << std::endl;
+            if (m_verbose)
+                std::cout << "nonoverlap2: " << dist << std::endl;
         }
         // Case3:
         //     *-----*
@@ -342,13 +346,15 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             {
                 overlapResult[dist1].push_back(std::make_pair(project1[6].first, project1[7].first));
                 overlapResult[dist1].push_back(std::make_pair(project2[0].first, project2[1].first));
-                std::cout << "E" << dist1 << std::endl;
+                if (m_verbose)
+                    std::cout << "overlap1-1: " << dist << std::endl;
             }
             else
             {
                 overlapResult[dist2].push_back(std::make_pair(project1[0].first, project1[1].first));
                 overlapResult[dist2].push_back(std::make_pair(project2[6].first, project2[7].first));
-                std::cout << "E" << dist2 << std::endl;
+                if (m_verbose)
+                    std::cout << "overlap2-1: " << dist << std::endl;
             }
         }
         else if (project2[0].second <= project1[0].second && project1[0].second < project2[7].second && project2[0].second < project1[7].second &&
@@ -362,19 +368,22 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
             {
                 overlapResult[dist1].push_back(std::make_pair(project1[0].first, project1[1].first));
                 overlapResult[dist1].push_back(std::make_pair(project2[6].first, project2[7].first));
-                std::cout << "F" << dist1 << std::endl;
+                if (m_verbose)
+                    std::cout << "overlap2-1: " << dist << std::endl;
             }
             else
             {
                 overlapResult[dist2].push_back(std::make_pair(project1[6].first, project1[7].first));
                 overlapResult[dist2].push_back(std::make_pair(project2[0].first, project2[1].first));
-                std::cout << "F" << dist2 << std::endl;
+                if (m_verbose)
+                    std::cout << "overlap2-2: " << dist << std::endl;
             }
             overlap = true;
         }
         else
         {
-            std::cout << "no suitable" << std::endl;
+            if (m_verbose)
+                std::cout << "no suitable" << std::endl;
         }
 
         //if(overlap)
@@ -425,10 +434,13 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
         std::cout << reShape2[point[1].first] << std::endl;
         std::cout << reShape2[point[1].second] << std::endl;
         equ = inequalityLineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second], centerPos);
-        std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
-        std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
-        std::cout << "obj2 relative point: ";
-        printPolygon(reShape2);
+        if (m_verbose)
+        {
+            std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+            std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
+            std::cout << "obj2 relative point: ";
+            printPolygon(reShape2);
+        }
     }
     else
     {
@@ -436,10 +448,13 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
         auto &&point = p->second;
         //equ = lineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second]);
         equ = inequalityLineEquation(shape1[point[0].first], shape1[point[0].second], reShape2[point[1].first], reShape2[point[1].second], centerPos);
-        std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
-        std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
-        std::cout << "obj2 relative point: ";
-        printPolygon(reShape2);
+        if (m_verbose)
+        {
+            std::cout << "point: " << shape1[point[0].first] << ", " << shape1[point[0].second] << std::endl;
+            std::cout << "relative point: " << reShape2[point[1].first] << ", " << reShape2[point[1].second] << std::endl;
+            std::cout << "obj2 relative point: ";
+            printPolygon(reShape2);
+        }
     }
     return equ;
 }
@@ -1478,6 +1493,7 @@ double Decompaction::maxLength()
 {
     std::vector<net> nets = m_db.getNets();
     double maxLength = 0;
+    std::string name;
     for (auto &&net : nets)
     {
         double netLength = 0;
@@ -1488,9 +1504,12 @@ double Decompaction::maxLength()
         }
         if (netLength > maxLength)
         {
+            name = net.getName();
             maxLength = netLength;
         }
     }
+
+    std::cout << "Maximum length in bus is: " << name << " with length: " << maxLength << std::endl;
     return maxLength;
 }
 
