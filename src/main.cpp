@@ -2,6 +2,7 @@
 #include "drc.h"
 #include "shape.h"
 #include "gurobiSolver.h"
+#include "clpSolver.h"
 
 int main(int argc, char *argv[])
 {
@@ -37,7 +38,8 @@ int main(int argc, char *argv[])
     //drc.printDrc();
     /*int objId = 755;
     drc.printObject(objId);*/
-    drc.writeLPfile(lpFile);
+    drc.addWidthToBusSegmentEquation();
+    //drc.writeLPfileForBus(lpFile);
     //
 
     //drc.printObject();
@@ -60,8 +62,11 @@ int main(int argc, char *argv[])
     db.printInst();
 
     GurobiSolver model;
-    model.solver(lpFile, solFile);
+    std::string solLpFile = lpFile + ".sol";
+    model.solver(lpFile, solLpFile);
 
+    ClpSolver clpModel;
+    clpModel.solver(lpFile, solLpFile);
 
     return 0;
 }
