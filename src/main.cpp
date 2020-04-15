@@ -1,12 +1,8 @@
 #include <iostream>
-#include "drc.h"
+#include "decompaction.h"
 #include "shape.h"
-<<<<<<< HEAD
 #include "gurobiSolver.h"
 #include "clpSolver.h"
-=======
-//#include "gurobiSolver.h"
->>>>>>> 8b474880053400251f431b083954a3efbe07bd34
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +21,7 @@ int main(int argc, char *argv[])
     db.printNetclass();*/
     //db.printUnconnectedPins();
 
-    Drc drc(db);
+    Decompaction drc(db);
     drc.clearEquations();
     drc.createRTree();
     drc.traverseRTree();
