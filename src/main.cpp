@@ -1,8 +1,12 @@
 #include <iostream>
 #include "drc.h"
 #include "shape.h"
+<<<<<<< HEAD
 #include "gurobiSolver.h"
 #include "clpSolver.h"
+=======
+//#include "gurobiSolver.h"
+>>>>>>> 8b474880053400251f431b083954a3efbe07bd34
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +25,6 @@ int main(int argc, char *argv[])
     db.printNetclass();*/
     //db.printUnconnectedPins();
 
-    
     Drc drc(db);
     drc.clearEquations();
     drc.createRTree();
@@ -29,10 +32,12 @@ int main(int argc, char *argv[])
     //int id = 891;
     //drc.printObject(id);
     //drc.printDrc();
-    if(solFile != "N") {
-    drc.readLPSolution(solFile);
-    drc.updateDatabase();
-    drc.updatePinsShapeAndPosition();
+    drc.printObject();
+    if (solFile != "N")
+    {
+        drc.readLPSolution(solFile);
+        drc.updateDatabase();
+        drc.updatePinsShapeAndPosition();
     }
     //drc.printObject(id);
     //drc.printDrc();
@@ -40,12 +45,11 @@ int main(int argc, char *argv[])
     drc.printObject(objId);*/
     drc.addWidthToBusSegmentEquation();
     //drc.writeLPfileForBus(lpFile);
+    drc.writeLPfileForBus(lpFile);
     //
 
-    //drc.printObject();
     //drc.printDrc();
-    
-    
+
     //drc.printObject(objId);
     db.printKiCad();
 
@@ -67,6 +71,10 @@ int main(int argc, char *argv[])
 
     ClpSolver clpModel;
     clpModel.solver(lpFile, solLpFile);
+    //db.printInst();
+
+    /*GurobiSolver model;
+    model.solver(lpFile, solFile);*/
 
     return 0;
 }

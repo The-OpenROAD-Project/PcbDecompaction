@@ -28,7 +28,7 @@ add_subdirectory(${KICADPCB_HOME})
 find_package(Boost REQUIRED)
 
 set (PCBDRC_SRC 
-    src/drc.cpp
+    src/decompaction.cpp
     src/gurobiSolver.cpp
     src/clpSolver.cpp
     #src/GridBasedRouter.cpp
@@ -37,7 +37,7 @@ set (PCBDRC_SRC
   )
 
 set (PCBDRC_HEADER
-    src/drc.h
+    src/decompaction.h
     src/gurobiSolver.h
     src/clpSolver.h
     #src/object.h
