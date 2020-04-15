@@ -1,7 +1,7 @@
 #include <iostream>
 #include "drc.h"
 #include "shape.h"
-#include "gurobiSolver.h"
+//#include "gurobiSolver.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
     db.printNetclass();*/
     //db.printUnconnectedPins();
 
-    
     Drc drc(db);
     drc.clearEquations();
     drc.createRTree();
@@ -28,22 +27,23 @@ int main(int argc, char *argv[])
     //int id = 891;
     //drc.printObject(id);
     //drc.printDrc();
-    if(solFile != "N") {
-    drc.readLPSolution(solFile);
-    drc.updateDatabase();
-    drc.updatePinsShapeAndPosition();
+    drc.printObject();
+    if (solFile != "N")
+    {
+        drc.readLPSolution(solFile);
+        drc.updateDatabase();
+        drc.updatePinsShapeAndPosition();
     }
     //drc.printObject(id);
     //drc.printDrc();
     /*int objId = 755;
     drc.printObject(objId);*/
-    drc.writeLPfile(lpFile);
+    drc.addWidthToBusSegmentEquation();
+    drc.writeLPfileForBus(lpFile);
     //
 
-    //drc.printObject();
     //drc.printDrc();
-    
-    
+
     //drc.printObject(objId);
     db.printKiCad();
 
@@ -57,11 +57,10 @@ int main(int argc, char *argv[])
     p2.m_y = 2.3;
     std::cout << "Larger " << (p1<=p2) << std::endl;*/
 
-    db.printInst();
+    //db.printInst();
 
-    GurobiSolver model;
-    model.solver(lpFile, solFile);
-
+    /*GurobiSolver model;
+    model.solver(lpFile, solFile);*/
 
     return 0;
 }

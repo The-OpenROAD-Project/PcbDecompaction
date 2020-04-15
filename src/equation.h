@@ -1,5 +1,5 @@
-#ifndef PCBDRC_EQUATION_H
-#define PCBDRC_EQUATION_H
+#ifndef PCBDECOMPACTION_EQUATION_H
+#define PCBDECOMPACTION_EQUATION_H
 
 ///////////////////////
 //    y-ax-b <=/>= 0
