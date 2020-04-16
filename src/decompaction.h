@@ -70,6 +70,7 @@ private:
     std::vector<point_2d> m_instDiffPos; //inst's diff position for each iteration
     kicadPcbDataBase &m_db;
     int m_numLayer;
+    bool m_verbose;
 
     //std::vector<bgi::rtree< value, bgi::quadratic<16> >> m_rtrees;   //std::pair<int, box> value -> <object id, object bbox>
 };

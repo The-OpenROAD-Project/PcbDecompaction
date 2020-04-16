@@ -1,7 +1,7 @@
 #include <iostream>
 #include "decompaction.h"
 #include "shape.h"
-#include "gurobiSolver.h"
+//#include "gurobiSolver.h"
 #include "clpSolver.h"
 
 int main(int argc, char *argv[])
@@ -61,9 +61,9 @@ int main(int argc, char *argv[])
 
     db.printInst();
 
-    GurobiSolver model;
     std::string solLpFile = lpFile + ".sol";
-    model.solver(lpFile, solLpFile);
+    /*GurobiSolver model;
+    model.solver(lpFile, solLpFile);*/
 
     ClpSolver clpModel;
     clpModel.solver(lpFile, solLpFile);
