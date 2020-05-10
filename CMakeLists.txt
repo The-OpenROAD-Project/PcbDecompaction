@@ -18,7 +18,7 @@ set(GUROBI_HOME
    ~/gurobi901/linux64
 )
 set(CLP_HOME
-   /home1/yenyi/coin-Clp
+   /usr/local/
 )
 
 
@@ -29,8 +29,10 @@ find_package(Boost REQUIRED)
 
 set (PCBDRC_SRC 
     src/decompaction.cpp
-    src/gurobiSolver.cpp
+    #src/gurobiSolver.cpp
     src/clpSolver.cpp
+    src/snaking.cpp
+    src/boundingBox.cpp
     #src/GridBasedRouter.cpp
     #src/plotter.cpp
     #src/globalParam.cpp
@@ -38,8 +40,10 @@ set (PCBDRC_SRC
 
 set (PCBDRC_HEADER
     src/decompaction.h
-    src/gurobiSolver.h
+    #src/gurobiSolver.h
     src/clpSolver.h
+    src/snaking.h
+    src/boundingBox.h
     #src/object.h
     #src/GridBasedRouter.h
     #src/plotter.h
@@ -54,7 +58,7 @@ include_directories(
     ${Boost_INCLUDE_DIR}
     ${KICADPCB_HOME}/src
     ${GUROBI_HOME}/include
-    ${CLP_HOME}/include/coin
+    ${CLP_HOME}/include/coin-or
   )
 
 ############################################################
@@ -83,10 +87,10 @@ add_dependencies( pcbdrc kicadpcbparserlib )
 target_link_libraries( pcbdrc
   pcbdrclib
   kicadpcbparserlib
-  /home1/yenyi/gurobi901/linux64/lib/libgurobi_c++.a
+  #/home1/yenyi/gurobi901/linux64/lib/libgurobi_c++.a
   # ${GUROBI_HOME}/lib/libgurobi_c++.a
-  ${GUROBI_HOME}/lib/libgurobi90.so
-  ${CLP_HOME}/lib/libClp.so
+  #${GUROBI_HOME}/lib/libgurobi90.so
+  ${CLP_HOME}/lib/libClp.dylib
 )
 
 ############################################################

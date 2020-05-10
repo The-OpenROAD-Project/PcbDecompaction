@@ -15,6 +15,7 @@ void Decompaction::createRTree()
     std::cout << "clearance: " << clearance << std::endl;
     for (auto &&net : nets)
     {
+        bool isBus = net.isBus();
         std::vector<Pin> pins = net.getPins();
         std::vector<Segment> segments = net.getSegments();
         std::vector<Via> vias = net.getVias();
@@ -46,7 +47,10 @@ void Decompaction::createRTree()
             obj.setPoly(polygon);
             obj.setRelativeShape(coordR);
             obj.setBBox(b);
+            obj.setLayer(layerId);
             obj.setPos(s.getPos());
+            obj.setIsBus(isBus);
+            obj.setPreviousPosition();
             if (layerId >= m_numLayer)
             {
                 layerId = m_numLayer - 1;
@@ -86,6 +90,7 @@ void Decompaction::createRTree()
             obj.setRelativeShape(coordRe);
             obj.setBBox(b);
             obj.setPos(pos);
+            obj.setIsBus(isBus);
             int layerId1 = m_db.getLayerId(layers[0]), layerId2 = m_db.getLayerId(layers[1]);
             if (layerId2 >= m_numLayer)
                 layerId2 = m_numLayer - 1;
@@ -141,7 +146,7 @@ void Decompaction::createRTree()
             obj.setPoly(polygon);
             obj.setBBox(b);
             obj.setLocked(true); //inst.isLocked());
-
+            obj.setIsBus(isBus);
             for (auto &&layer : layers)
             {
                 int layerId = layer;
@@ -1347,7 +1352,18 @@ void Decompaction::readLPSolution(std::string &fileName)
                 updateValue(objId, "x", coor, ObjectType::PIN);
             }
         }
-
+        else if (objNo[0] == 'w')
+        {
+            objId = std::stoi(objNo.substr(4));
+            if (objNo[2] == 'r')
+            {
+                updateExtraSpace(objId, "right", coor);
+            }
+            else if (objNo[2] == 'l')
+            {
+                updateExtraSpace(objId, "left", coor);
+            }
+        }
         //std::cout << objId << std::endl;
     }
 }
@@ -1389,6 +1405,7 @@ void Decompaction::updateValue(int &objId, std::string type, double &coor, Objec
     double diff = 0;
     if (objType == ObjectType::SEGMENT)
     {
+
         if (type == "x")
         {
             double x = obj.getX();
@@ -1422,6 +1439,15 @@ void Decompaction::updateValue(int &objId, std::string type, double &coor, Objec
     //std::cout << "diff: " << diff << std::endl;
     obj.updateShape(type, diff);
     obj.setPos(pos);
+}
+
+void Decompaction::updateExtraSpace(int &objId, std::string type, double &width)
+{
+    auto &&obj = m_objects[objId];
+    auto &&objType = obj.getType();
+    if (objType != ObjectType::SEGMENT)
+        return;
+    obj.setExtraSpace(width, type);
 }
 
 void Decompaction::updateDatabase()
@@ -1496,6 +1522,8 @@ double Decompaction::maxLength()
     std::string name;
     for (auto &&net : nets)
     {
+        if (!net.isBus())
+            continue;
         double netLength = 0;
         std::vector<Segment> segments = net.getSegments();
         for (auto &&seg : segments)
@@ -1522,6 +1550,8 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
     {
         if (obj.getType() != ObjectType::SEGMENT)
             continue;
+        if (!obj.isBus())
+            continue;
         int netId = obj.getNetId();
         int objId = obj.getId();
         netToSegment[netId].push_back(objId);
@@ -1533,6 +1563,8 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
     double segWidth = 0.127;
+    double clearance = 3 * m_db.getLargestClearance();
+    double widthReci = 1 / (segWidth + clearance);
     double maxL = maxLength();
 
     for (auto &&net : netToSegment)
@@ -1647,12 +1679,16 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
             continue;
         //file << maxL;
         bool noDeltaWidth = true;
+        double totalLength = 0;
         for (auto &&seg : net)
         {
             auto &&obj = m_objects[seg];
             int objId = obj.getId();
             auto &equs = obj.getEquations();
             bool leftWidth = false, rightWidth = false;
+            double segLength = obj.getLength();
+            totalLength += segLength;
+            double coeff = segLength * widthReci;
             for (auto &equ : equs)
             {
                 if (equ[4] == 1)
@@ -1669,17 +1705,17 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
 
             if (rightWidth && leftWidth)
             {
-                file << " + 7.874 w_r_" << objId << " + 7.874 w_l_" << objId;
+                file << " + " << coeff << " w_r_" << objId << " + " << coeff << " w_l_" << objId;
                 //file << " - 1 - 7.874 w_r_" << objId << " - 7.874 w_l_" << objId;
             }
             else if (rightWidth && !leftWidth)
             {
-                file << " + 7.874 w_r_" << objId;
+                file << " + " << coeff << " w_r_" << objId;
                 //file << " - 1 - 7.874 w_r_" << objId;
             }
             else if (!rightWidth && leftWidth)
             {
-                file << " + 7.874 w_l_" << objId;
+                file << " + " << coeff << " w_l_" << objId;
                 //file << " - 1 - 7.874 w_l_" << objId;
             }
             else
@@ -1688,9 +1724,68 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
                 //file << " - 1";
             }
         }
-        double remain = maxL - net.size();
+        double remain = maxL - totalLength;
         if (!noDeltaWidth)
             file << " >= " << remain << std::endl;
+    }
+
+    for (auto &&net : netToSegment)
+    {
+        if (net.size() == 0)
+            continue;
+        //file << maxL;
+        bool noDeltaWidth = true;
+        double totalLength = 0;
+        double minWidth = 0.2;
+        double bigNumber = 1000;
+        for (auto &&seg : net)
+        {
+            auto &&obj = m_objects[seg];
+            int objId = obj.getId();
+            auto &equs = obj.getEquations();
+            bool leftWidth = false, rightWidth = false;
+
+            for (auto &equ : equs)
+            {
+                if (equ[4] == 1)
+                {
+                    rightWidth = true;
+                    noDeltaWidth = false;
+                }
+                else if (equ[4] == 0)
+                {
+                    leftWidth = true;
+                    noDeltaWidth = false;
+                }
+            }
+
+            if (rightWidth && leftWidth)
+            {
+                file << " w_r_" << objId << " + "
+                     << " w_l_" << objId << " - " << bigNumber << " B_" << objId << " >= " << (minWidth - bigNumber) << std::endl;
+
+                file << bigNumber << " B_" << objId << " + w_r_" << objId << " + "
+                     << " w_l_" << objId << " >= 0" << std::endl;
+
+                file << -bigNumber << " B_" << objId << " + w_r_" << objId << " + "
+                     << " w_l_" << objId << " <= 0" << std::endl;
+            }
+            else if (rightWidth && !leftWidth)
+            {
+                file << " w_r_" << objId << " - " << bigNumber << " B_" << objId << " >= " << (minWidth - bigNumber) << std::endl;
+                file << bigNumber << " B_" << objId << " + w_r_" << objId << " >= 0" << std::endl;
+                file << -bigNumber << " B_" << objId << " + w_r_" << objId << " <= 0" << std::endl;
+            }
+            else if (!rightWidth && leftWidth)
+            {
+                file << " w_l_" << objId << " - " << bigNumber << " B_" << objId << " >= " << (minWidth - bigNumber) << std::endl;
+                file << bigNumber << " B_" << objId << " + w_l_" << objId << " >= 0" << std::endl;
+                file << -bigNumber << " B_" << objId << " + w_l_" << objId << " <= 0" << std::endl;
+            }
+            else
+            {
+            }
+        }
     }
 
     file << std::endl;
@@ -1736,6 +1831,30 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
         }
     }
 
+    file << std::endl;
+    file << "Binary" << std::endl;
+    for (auto &&net : netToSegment)
+    {
+        if (net.size() == 0)
+            continue;
+        for (auto &&seg : net)
+        {
+            auto &&obj = m_objects[seg];
+            int objId = obj.getId();
+            auto &equs = obj.getEquations();
+            bool deltaWidth = false;
+            for (auto &equ : equs)
+            {
+                if (equ[4] == 1 || equ[4] == 0)
+                {
+                    deltaWidth = true;
+                }
+            }
+            if (deltaWidth)
+                file << "B_" << objId << std::endl;
+        }
+    }
+
     file << "End" << std::endl;
 
     file.close();
@@ -1745,19 +1864,24 @@ void Decompaction::addWidthToBusSegmentEquation()
 {
     for (auto &&obj : m_objects)
     {
-        //if(!obj.isBus()) continue;
+        if (!obj.isBus())
+            continue;
         if (obj.getType() != ObjectType::SEGMENT)
             continue;
         auto &equs = obj.getEquations();
         int angle = obj.getAngle();
         int id = obj.getId();
         auto &points = obj.getPos();
-        double length = points[0].getDistance(points[0], points[1]);
-        if (length < 1.5)
-            continue;
-        std::cout << "obj id: " << id << " angle: " << angle << " slope: " << std::endl;
+        double length = obj.getLength();
+
+        std::cout << "obj id: " << id << " angle: " << angle << " length: " << length << " slope: " << std::endl;
         for (auto &&equ : equs)
         {
+            if (length < 3)
+            {
+                equ.push_back(-1);
+                continue;
+            }
             double slope;
             if (equ[0] == 0)
                 slope = 10000;
@@ -1798,5 +1922,226 @@ void Decompaction::addWidthToBusSegmentEquation()
                 equ.push_back(-1);
             }
         }
+    }
+}
+
+void Decompaction::getSnaking()
+{
+    //////////////////TEST///////////////
+    double clearance = m_db.getLargestClearance();
+    double width = 0.127;
+    point_2d ll(123.26, 138.05);
+    point_2d rr(132.11, 139);
+    /*point_2d ll(0, 0);
+    point_2d rr(10, 3);*/
+    points_2d bbox, point;
+    bbox.push_back(ll);
+    bbox.push_back(rr);
+    point_2d start(123.26, 138.05);
+    point_2d end(132.11, 138.05);
+    /*point_2d start(0, 0);
+    point_2d end(10, 3);*/
+    point.push_back(start);
+    point.push_back(end);
+    Snaking snake(bbox, clearance, width, point);
+    auto pattern = snake.getSnakingPattern();
+    auto &net = m_db.getNet(2);
+    for (auto p : pattern)
+    {
+        std::cout << "Add segment: " << p.getId() << std::endl;
+        net.addSegment(p);
+    }
+}
+
+void Decompaction::getBoundingBox()
+{
+    std::pair<double, double> width = std::make_pair<double, double>(1.5, 2.5);
+    int angle = 45;
+    auto start = point_2d{1, 1};
+    auto end = point_2d{7, 7};
+    auto bboxObj = BoundingBox{width, angle, start, end};
+    auto bbox = bboxObj.getBBox();
+    std::cout << "ll: " << bbox[0] << " rr: " << bbox[1] << std::endl;
+
+    bboxObj.printBBox();
+    bboxObj.printBBox(-angle);
+
+    auto rotatedStart = bboxObj.getPoint(start, angle);
+    auto rotatedEnd = bboxObj.getPoint(end, angle);
+    std::cout << "start:" << rotatedStart << std::endl;
+    std::cout << "end:" << rotatedEnd << std::endl;
+}
+
+void Decompaction::testBBoxSnaking()
+{
+    int angle = 45;
+    double segWidth = 0.127;
+    double clearance = m_db.getLargestClearance();
+    auto start = point_2d{119.81, 133.95};
+    auto end = point_2d{123.61, 137.75};
+    std::pair<double, double> width = std::make_pair<double, double>(0.13, 1.5);
+    auto bboxObj = BoundingBox{width, angle, start, end};
+    auto llrr = bboxObj.getBBox();
+
+    points_2d bbox, point;
+    bbox.push_back(llrr[0]);
+    bbox.push_back(llrr[2]);
+    point.emplace_back(bboxObj.getPoint(start, angle));
+    point.emplace_back(bboxObj.getPoint(end, angle));
+
+    Snaking snake(bbox, clearance, segWidth, point);
+    auto pattern = snake.getSnakingPattern(-angle);
+    auto &net = m_db.getNet(1);
+    for (auto p : pattern)
+    {
+        std::cout << "Add segment: " << p.getId() << std::endl;
+        net.addSegment(p);
+    }
+}
+
+/////////////
+// angle  | start end point
+// 0      | start.m_x < end.m_x
+// 45     | start.m_x < end.m_y
+// 90     | start.m_y < end.m_y
+// 135    | start.m_y < end.m_y
+/////////////
+void Decompaction::addSnakingPatterns()
+{
+    double segWidth = 0.127;
+    for (auto &&obj : m_objects)
+    {
+        if (obj.getType() != ObjectType::SEGMENT)
+            continue;
+        auto space = obj.getExtraSpace();
+        if (space.first == 0 && space.second == 0)
+            continue;
+
+        space.first += 0.5 * segWidth;
+        space.second += 0.5 * segWidth;
+        int angle = obj.getAngle();
+        auto p = obj.getPos();
+        point_2d start, end;
+        points_2d startEnd, llrtPt;
+        bool change = false;
+        if (angle == 0 || angle == 45)
+        {
+            if (p[0].m_x > p[1].m_x)
+                change = true;
+            start = (p[0].m_x < p[1].m_x) ? p[0] : p[1];
+            end = (p[0].m_x < p[1].m_x) ? p[1] : p[0];
+            double temp = space.second;
+            space.second = space.first;
+            space.first = temp;
+        }
+        else if (angle == 90 || angle == 135)
+        {
+            if (p[0].m_y > p[1].m_y)
+                change = true;
+            start = (p[0].m_y < p[1].m_y) ? p[0] : p[1];
+            end = (p[0].m_y < p[1].m_y) ? p[1] : p[0];
+        }
+
+        /*
+        if (change)
+        {
+            start = p[1];
+            end = p[0];
+            double temp = space.second;
+            space.second = space.first;
+            space.first = temp;
+        }
+        else
+        {
+            start = p[0];
+            end = p[1];
+        }
+        */
+
+        auto bboxObj = BoundingBox{space, angle, start, end};
+        auto bbox = bboxObj.getBBox();
+        double clearance = m_db.getLargestClearance();
+        startEnd.emplace_back(bboxObj.getPoint(start, angle));
+        ;
+        startEnd.emplace_back(bboxObj.getPoint(end, angle));
+        ;
+        llrtPt.push_back(bbox[0]);
+        llrtPt.push_back(bbox[2]);
+
+        int netId = obj.getNetId(), layerId = obj.getLayer(), segId = obj.getDBId();
+        std::cout << "net id: " << netId << " objId: " << obj.getId() << std::endl;
+        std::string layer = m_db.getLayerName(layerId);
+        Snaking snake(llrtPt, clearance, segWidth, startEnd, layer);
+        auto pattern = snake.getSnakingPattern(-angle);
+
+        auto &net = m_db.getNet(netId);
+        auto &&seg = net.getSegment(segId);
+        seg.setDisplay(false);
+        int segCnt = net.getSegmentCount();
+        for (auto p : pattern)
+        {
+            p.setId(p.getId() + segCnt);
+            std::cout << "Add segment: " << p.getId() << std::endl;
+            net.addSegment(p);
+        }
+
+        if (obj.isMoved())
+        {
+            std::cout << "MOVE" << std::endl;
+            points_2d startSegPos, endSegPos;
+            points_2d prePos = obj.getPreviousPosition();
+            if (change)
+            {
+                std::cout << "change\t";
+                startSegPos.emplace_back(prePos[1]);
+                startSegPos.emplace_back(start);
+                endSegPos.emplace_back(prePos[0]);
+                endSegPos.emplace_back(end);
+                std::cout << "start: " << prePos[1] << " " << start << "   end: " << prePos[0] << " " << end << std::endl;
+            }
+            else
+            {
+                startSegPos.emplace_back(prePos[0]);
+                startSegPos.emplace_back(start);
+                endSegPos.emplace_back(prePos[1]);
+                endSegPos.emplace_back(end);
+
+                std::cout << "start: " << prePos[0] << " " << start << "   end: " << prePos[1] << " " << end << std::endl;
+            }
+
+            segCnt = net.getSegmentCount();
+            Segment startSeg(segCnt + 1, netId, segWidth, layer);
+            startSeg.setPosition(startSegPos);
+            Segment endSeg(segCnt + 2, netId, segWidth, layer);
+            endSeg.setPosition(endSegPos);
+            net.addSegment(startSeg);
+            net.addSegment(endSeg);
+        }
+    }
+}
+
+double Decompaction::getNetLength(int &netId)
+{
+    auto &&net = m_db.getNet(netId);
+    if (!net.isBus())
+        return -1;
+    double netLength = 0;
+    std::vector<Segment> segments = net.getSegments();
+    for (auto &&seg : segments)
+    {
+        netLength += seg.getLength();
+    }
+
+    return netLength;
+}
+
+void Decompaction::printAllNetLength()
+{
+    std::cout << "############### NET LENGTH#############" << std::endl;
+    int numNet = m_db.getNumNets();
+    for (int i = 0; i < numNet; ++i)
+    {
+        double length = getNetLength(i);
+        std::cout << "Net id: " << i << ", length: " << length << std::endl;
     }
 }

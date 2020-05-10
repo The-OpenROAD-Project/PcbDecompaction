@@ -9,6 +9,8 @@
 #include "point.h"
 #include "shape.h"
 #include "object.h"
+#include "snaking.h"
+#include "boundingBox.h"
 #include <vector>
 #include <iostream>
 
@@ -59,10 +61,17 @@ public:
     void updateValue(int &, std::string, double &, ObjectType);
     void updateDatabase();
     void updatePinsShapeAndPosition();
+    void updateExtraSpace(int &objId, std::string type, double &width);
     void printObject(int &);
     void clearEquations();
     void addWidthToBusSegmentEquation();
     double maxLength();
+    void getSnaking();
+    void getBoundingBox();
+    void addSnakingPatterns();
+    void testBBoxSnaking();
+    double getNetLength(int &);
+    void printAllNetLength();
 
 private:
     std::vector<Object> m_objects;
