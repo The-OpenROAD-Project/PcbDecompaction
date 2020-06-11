@@ -15,7 +15,7 @@ Printed Circuit Board (PCB) decompactor
 
 Clone
 ```
-git clone --recurse-submodules https://github.com/The-OpenROAD-Project/PcbRouter.git
+git clone --recurse-submodules https://github.com/The-OpenROAD-Project/PcbDecompaction.git
 ```
 
 Build
