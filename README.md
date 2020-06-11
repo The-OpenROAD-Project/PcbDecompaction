@@ -33,5 +33,10 @@ mkdir output
 ```
 
 
+
+## Status
+Interaction between router and decompactor is not done yet.
+
+
 ## License
   * BSD-3-clause License [[Link]](LICENSE)
