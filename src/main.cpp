@@ -3,12 +3,13 @@
 #include "shape.h"
 //#include "gurobiSolver.h"
 #include "clpSolver.h"
+#include "cbcSolver.h"
 
 int main(int argc, char *argv[])
 {
     std::string designName = argv[1];
     std::string lpFile = argv[2];
-    std::string solFile = argv[3];
+    //std::string solFile = argv[3];
     auto db = kicadPcbDataBase{designName};
     //db.printLockedInst();
     //db.printKiCad();
@@ -22,6 +23,7 @@ int main(int argc, char *argv[])
     //db.printUnconnectedPins();
 
     Decompaction drc(db);
+    drc.printAllNetLength();
     drc.clearEquations();
     drc.createRTree();
     drc.traverseRTree();
@@ -29,25 +31,22 @@ int main(int argc, char *argv[])
     //drc.printObject(id);
     //drc.printDrc();
     drc.printObject();
-    if (solFile != "N")
-    {
-        drc.readLPSolution(solFile);
-        drc.updateDatabase();
-        drc.updatePinsShapeAndPosition();
-    }
+
     //drc.printObject(id);
     //drc.printDrc();
     /*int objId = 755;
     drc.printObject(objId);*/
-    drc.addWidthToBusSegmentEquation();
-    //drc.writeLPfileForBus(lpFile);
-    drc.writeLPfileForBus(lpFile);
+
     //
 
+    /////////////FOR BUS////////////////
+    drc.addWidthToBusSegmentEquation();
+    drc.writeLPfileForBus(lpFile);
     //drc.printDrc();
+    /////////////////////////////////////
 
     //drc.printObject(objId);
-    db.printKiCad();
+    //db.printKiCad();
 
     //db.printClearanceDrc();
     //drc.testProjection();
@@ -66,11 +65,32 @@ int main(int argc, char *argv[])
     model.solver(lpFile, solLpFile);*/
 
     ClpSolver clpModel;
-    clpModel.solver(lpFile, solLpFile);
+    //clpModel.solver(lpFile, solLpFile);
     //db.printInst();
+    CbcSolver cbcModel;
+    cbcModel.solver(lpFile, solLpFile);
 
     /*GurobiSolver model;
     model.solver(lpFile, solFile);*/
 
+    {
+        drc.readLPSolution(solLpFile);
+        drc.updateDatabase();
+        drc.updatePinsShapeAndPosition();
+    }
+
+    std::cout << "#############ADD SNACKING############" << std::endl;
+    drc.addSnakingPatterns();
+
+    //drc.testBBoxSnaking();
+
+    /*std::cout << "===========SNACKING===========" << std::endl;
+    drc.getSnaking();*/
+
+    /*
+    std::cout << "===========BBOX TEST==========" << std::endl;
+    drc.getBoundingBox();*/
+
+    db.printKiCad();
     return 0;
 }

@@ -11,7 +11,7 @@ void Decompaction::createRTree()
     m_rtrees.resize(m_numLayer);
     std::vector<net> nets = m_db.getNets();
     int id = 0;
-    double clearance = (m_db.getLargestClearance() / 2);
+    double clearance = 2 * (m_db.getLargestClearance() / 2); //For bus!!!
     std::cout << "clearance: " << clearance << std::endl;
     for (auto &&net : nets)
     {
@@ -1639,6 +1639,34 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
             int objId = obj.getId();
             for (auto &&equ : equs)
             {
+                if (equ[4] == -1)
+                {
+                    double value = 0;
+                    file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+
+                    if (equ[3] == 0)
+                        file << " + s_" << count;
+                    else if (equ[3] == 1)
+                        file << " - s_" << count;
+
+                    if (equ[3] == 0)
+                    {
+
+                        file << " >= ";
+                    }
+                    else if (equ[3] == 1)
+                    {
+
+                        file << " <= ";
+                    }
+                    value += -1 * equ[2];
+                    file << value;
+
+                    file << std::endl;
+
+                    continue;
+                }
+                double value = 0;
 
                 file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
 
@@ -1651,13 +1679,57 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
                 else if (equ[4] == 0)
                     file << " - w_l_" << objId;
                 if (equ[3] == 0)
+                {
+                    file << " + 1000 B_" << objId;
                     file << " >= ";
+                }
                 else if (equ[3] == 1)
+                {
+                    file << " - 1000 B_" << objId;
                     file << " <= ";
-                double value = -1 * equ[2];
+                }
+                value += -1 * equ[2];
                 file << value;
 
                 file << std::endl;
+
+                value = 0;
+
+                file << equ[0] << " y_" << objId << " + " << equ[1] << " x_" << objId << " ";
+
+                if (equ[3] == 0)
+                    file << " + s_" << count;
+                else if (equ[3] == 1)
+                    file << " - s_" << count;
+                if (equ[4] == 1)
+                    file << " + w_r_" << objId;
+                else if (equ[4] == 0)
+                    file << " - w_l_" << objId;
+                if (equ[3] == 0)
+                {
+                    file << " - 1000 B_" << objId;
+                    file << " >= ";
+                    if (equ[4] == 1 || equ[4] == 0)
+                    {
+                        value += m_db.getLargestClearance();
+                        value -= 1000;
+                    }
+                }
+                else if (equ[3] == 1)
+                {
+                    file << " + 1000 B_" << objId;
+                    file << " <= ";
+                    if (equ[4] == 1 || equ[4] == 0)
+                    {
+                        value -= m_db.getLargestClearance();
+                        value += 1000;
+                    }
+                }
+                value += -1 * equ[2];
+                file << value;
+
+                file << std::endl;
+
                 ++count;
             }
 
@@ -1736,7 +1808,7 @@ void Decompaction::writeLPfileForBus(std::string &fileName)
         //file << maxL;
         bool noDeltaWidth = true;
         double totalLength = 0;
-        double minWidth = 0.2;
+        double minWidth = 0.327;
         double bigNumber = 1000;
         for (auto &&seg : net)
         {
@@ -1943,7 +2015,8 @@ void Decompaction::getSnaking()
     point_2d end(10, 3);*/
     point.push_back(start);
     point.push_back(end);
-    Snaking snake(bbox, clearance, width, point);
+    int netId = 2;
+    Snaking snake(bbox, clearance, width, point, netId);
     auto pattern = snake.getSnakingPattern();
     auto &net = m_db.getNet(2);
     for (auto p : pattern)
@@ -1988,8 +2061,8 @@ void Decompaction::testBBoxSnaking()
     bbox.push_back(llrr[2]);
     point.emplace_back(bboxObj.getPoint(start, angle));
     point.emplace_back(bboxObj.getPoint(end, angle));
-
-    Snaking snake(bbox, clearance, segWidth, point);
+    int netId = 1;
+    Snaking snake(bbox, clearance, segWidth, point, netId);
     auto pattern = snake.getSnakingPattern(-angle);
     auto &net = m_db.getNet(1);
     for (auto p : pattern)
@@ -2017,8 +2090,10 @@ void Decompaction::addSnakingPatterns()
         if (space.first == 0 && space.second == 0)
             continue;
 
-        space.first += 0.5 * segWidth;
-        space.second += 0.5 * segWidth;
+        //space.first += 0.5 * segWidth;
+        //space.second += 0.5 * segWidth;
+        //space.first -= m_db.getLargestClearance();
+        //space.second -= m_db.getLargestClearance();
         int angle = obj.getAngle();
         auto p = obj.getPos();
         point_2d start, end;
@@ -2071,7 +2146,7 @@ void Decompaction::addSnakingPatterns()
         int netId = obj.getNetId(), layerId = obj.getLayer(), segId = obj.getDBId();
         std::cout << "net id: " << netId << " objId: " << obj.getId() << std::endl;
         std::string layer = m_db.getLayerName(layerId);
-        Snaking snake(llrtPt, clearance, segWidth, startEnd, layer);
+        Snaking snake(llrtPt, clearance, segWidth, startEnd, netId, layer);
         auto pattern = snake.getSnakingPattern(-angle);
 
         auto &net = m_db.getNet(netId);

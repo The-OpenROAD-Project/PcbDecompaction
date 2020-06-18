@@ -2,6 +2,259 @@
 
 void Snaking::buildSnakingPattern()
 {
+    double cornerLength = 0.127;
+    double width = getSegmentWidth() + 3 * getClearance(); //horizontal length
+    double bufferLength = width + 3 * cornerLength;
+    double length = getBboxLength() - 2 * bufferLength;
+    double cnt = length / width, intCnt, fracCnt;
+    fracCnt = modf(cnt, &intCnt);
+    bufferLength = (getBboxLength() - intCnt * width) / 2;
+    auto bbox = getBbox();
+    int id = 0, netId = m_netId, i = 0;
+    points_2d horPos, verPos, corPos1, corPos2;
+    std::string layer = m_layer;
+    point_2d intersectPt;
+
+    std::cout << "buffer: " << bufferLength << std::endl;
+    bbox[0].m_x += bufferLength;
+    bbox[1].m_x -= bufferLength;
+
+    //////////////////FOR START POINT//////////////////
+    points_2d intersectCor;
+
+    // \\___
+    intersectCor.emplace_back(point_2d(bbox[0].m_x - width - 2 * cornerLength, m_bbox[0].m_y + cornerLength));
+    intersectCor.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+    intersectPt = getIntersectionOfPointLine(m_points[0], intersectCor);
+    std::cout << "intersect start: " << intersectPt << std::endl;
+    std::cout << "start: " << m_points[0] << std::endl;
+    if (intersectPt.m_x >= m_points[0].m_x) //
+    {
+
+        horPos.emplace_back(point_2d(m_points[0].m_x, m_points[0].m_y));
+        horPos.emplace_back(intersectPt);
+
+        corPos1.emplace_back(intersectPt);
+        corPos1.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(horPos);
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos1);
+    }
+    else
+    {
+        corPos1 = intersectCor;
+
+        verPos.emplace_back(point_2d(bbox[0].m_x - width - 2 * cornerLength, m_bbox[0].m_y + cornerLength));
+        verPos.emplace_back(point_2d(bbox[0].m_x - width - 2 * cornerLength, m_points[0].m_y - cornerLength));
+
+        corPos2.emplace_back(point_2d(bbox[0].m_x - width - 2 * cornerLength, m_points[0].m_y - cornerLength));
+        corPos2.emplace_back(point_2d(bbox[0].m_x - width - 3 * cornerLength, m_points[0].m_y));
+
+        horPos.emplace_back(point_2d(bbox[0].m_x - width - 3 * cornerLength, m_points[0].m_y));
+        horPos.emplace_back(point_2d(m_points[0].m_x, m_points[0].m_y));
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(horPos);
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos2);
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(verPos);
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos1);
+    }
+
+    verPos.clear();
+    horPos.clear();
+    corPos1.clear();
+    corPos2.clear();
+
+    horPos.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+    horPos.emplace_back(point_2d(bbox[0].m_x - cornerLength, bbox[0].m_y));
+
+    corPos1.emplace_back(point_2d(bbox[0].m_x - cornerLength, bbox[0].m_y));
+    corPos1.emplace_back(point_2d(bbox[0].m_x, bbox[0].m_y + cornerLength));
+
+    verPos.emplace_back(point_2d(bbox[0].m_x, bbox[0].m_y + cornerLength));
+    verPos.emplace_back(point_2d(bbox[0].m_x, bbox[1].m_y - cornerLength));
+
+    m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+    m_snaking.back().setPosition(horPos);
+    m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+    m_snaking.back().setPosition(corPos1);
+    m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+    m_snaking.back().setPosition(verPos);
+
+    for (i = 1; i <= intCnt; ++i)
+    {
+        verPos.clear();
+        horPos.clear();
+        corPos1.clear();
+        corPos2.clear();
+        if (i % 2 == 1) // top corner
+        {
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[1].m_y - cornerLength));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+        }
+        else //bottom corner
+        {
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[0].m_y + cornerLength));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+        }
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos1);
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(horPos);
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos2);
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(verPos);
+    }
+    verPos.clear();
+    horPos.clear();
+    corPos1.clear();
+    corPos2.clear();
+    intersectCor.clear();
+    //////////////////FOR END POINT//////////////////
+    if (i % 2 == 1)
+    { //top corner
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[1].m_y - cornerLength));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+
+        horPos.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+        horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos1);
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(horPos);
+
+        horPos.clear();
+        corPos1.clear();
+
+        intersectCor.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+        intersectCor.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+        intersectPt = getIntersectionOfPointLine(m_points[1], intersectCor);
+        if (intersectPt.m_x <= m_points[1].m_x)
+        {
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+            corPos2.emplace_back(intersectPt);
+
+            horPos.emplace_back(intersectPt);
+            horPos.emplace_back(m_points[1]);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos2);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(horPos);
+        }
+        else
+        {
+            corPos1 = intersectCor;
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, m_points[1].m_y + cornerLength));
+
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, m_points[1].m_y + cornerLength));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, m_points[1].m_y));
+
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, m_points[1].m_y));
+            horPos.emplace_back(m_points[1]);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos1);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(verPos);
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos2);
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(horPos);
+        }
+    }
+    else
+    {
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[0].m_y + cornerLength));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+
+        horPos.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+        horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(corPos1);
+
+        m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+        m_snaking.back().setPosition(horPos);
+
+        horPos.clear();
+        corPos1.clear();
+
+        intersectCor.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+        intersectCor.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+        intersectPt = getIntersectionOfPointLine(m_points[1], intersectCor);
+        if (intersectPt.m_x <= m_points[1].m_x)
+        {
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+            corPos2.emplace_back(intersectPt);
+
+            horPos.emplace_back(intersectPt);
+            horPos.emplace_back(m_points[1]);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos2);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(horPos);
+        }
+        else
+        {
+            corPos1 = intersectCor;
+
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+            verPos.emplace_back(point_2d(bbox[0].m_x + (i)*width, m_points[1].m_y - cornerLength));
+
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, m_points[1].m_y - cornerLength));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, m_points[1].m_y));
+
+            horPos.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, m_points[1].m_y));
+            horPos.emplace_back(m_points[1]);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos1);
+
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(verPos);
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(corPos2);
+            m_snaking.emplace_back(Segment(id++, netId, getSegmentWidth(), layer));
+            m_snaking.back().setPosition(horPos);
+        }
+    }
+}
+
+void Snaking::oldbuildSnakingPattern()
+{
     std::cout << "start: " << m_points[0] << ", end: " << m_points[1] << std::endl;
     std::cout << "bbox: " << m_bbox[0] << ", " << m_bbox[1] << std::endl;
     double cornerLength = 0.127;
@@ -21,9 +274,62 @@ void Snaking::buildSnakingPattern()
     bbox[0].m_x += bufferLength;
     bbox[1].m_x -= bufferLength;
 
-    for (i = 0; i < intCnt - 1; ++i)
+    //////////////////FOR START POINT//////////////////
+    points_2d intersectCor;
+
+    intersectCor.emplace_back(point_2d(bbox[0].m_x - width - 2 * cornerLength, m_bbox[0].m_y + cornerLength));
+    intersectCor.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+    intersectPt = getIntersectionOfPointLine(m_points[0], intersectCor);
+    std::cout << "intersect start: " << intersectPt << std::endl;
+    std::cout << "start: " << m_points[0] << std::endl;
+    points_2d startSegPos;
+    startSegPos.emplace_back(point_2d(m_points[0].m_x, m_points[0].m_y));
+    startSegPos.emplace_back(intersectPt);
+
+    Segment segStart(id++, netId, getSegmentWidth(), layer);
+    segStart.setPosition(startSegPos);
+    m_snaking.push_back(segStart);
+
+    points_2d corPos;
+    corPos.emplace_back(intersectPt);
+    corPos.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+
+    Segment corSeg(id++, netId, getSegmentWidth(), layer);
+    corSeg.setPosition(corPos);
+    m_snaking.push_back(corSeg);
+
+    positions.clear();
+    corPos1.clear();
+    corPos2.clear();
+
+    //horizontal
+    positions.emplace_back(point_2d(bbox[0].m_x - width - cornerLength, bbox[0].m_y));
+    positions.emplace_back(point_2d(bbox[0].m_x - cornerLength, bbox[0].m_y));
+    // | |
+    // / /corner
+    corPos2.emplace_back(point_2d(bbox[0].m_x - cornerLength, bbox[0].m_y));
+    corPos2.emplace_back(point_2d(bbox[0].m_x, bbox[0].m_y + cornerLength));
+
+    Segment segHorStart(id++, netId, getSegmentWidth(), layer);
+    segHorStart.setPosition(positions);
+    m_snaking.push_back(segHorStart);
+
+    Segment cor2Start(id++, netId, getSegmentWidth(), layer);
+    cor2Start.setPosition(corPos2);
+    m_snaking.push_back(cor2Start);
+
+    positions.clear();
+    positions.emplace_back(point_2d(bbox[0].m_x, bbox[1].m_y - cornerLength));
+    positions.emplace_back(point_2d(bbox[0].m_x, bbox[0].m_y + cornerLength));
+    Segment seg1(id++, netId, getSegmentWidth(), layer);
+    seg1.setPosition(positions);
+    m_snaking.push_back(seg1);
+
+    for (i = 1; i < intCnt - 1; ++i)
     {
         positions.clear();
+        corPos1.clear();
+        corPos2.clear();
         if (i == 0)
         {
             points_2d intersectCor;
@@ -60,8 +366,8 @@ void Snaking::buildSnakingPattern()
         else
         {
             //Vertical line
-            positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[1].m_y - cornerLength));
-            positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[0].m_y + cornerLength));
+            positions.emplace_back(point_2d(bbox[0].m_x + i * width, bbox[1].m_y - cornerLength));
+            positions.emplace_back(point_2d(bbox[0].m_x + i * width, bbox[0].m_y + cornerLength));
             Segment seg(id++, netId, getSegmentWidth(), layer);
             seg.setPosition(positions);
             m_snaking.push_back(seg);
@@ -77,15 +383,15 @@ void Snaking::buildSnakingPattern()
         {
             // | |
             //  \ \ corner
-            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[0].m_y + cornerLength));
-            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + i * width, bbox[0].m_y + cornerLength));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + i * width + cornerLength, bbox[0].m_y));
             //horizontal
-            positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
-            positions.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
+            positions.emplace_back(point_2d(bbox[0].m_x + i * width + cornerLength, bbox[0].m_y));
+            positions.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width - cornerLength, bbox[0].m_y));
             // | |
             // / /corner
-            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[0].m_y));
-            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width - cornerLength, bbox[0].m_y));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width, bbox[0].m_y + cornerLength));
         }
         else if (i == 0)
         {
@@ -101,17 +407,17 @@ void Snaking::buildSnakingPattern()
         {
             // / / corner
             // | |
-            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[1].m_y - cornerLength));
-            corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+            corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[1].m_y));
 
             //horizontal
-            positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
-            positions.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
+            positions.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[1].m_y));
+            positions.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width - cornerLength, bbox[1].m_y));
 
             // \ \ corner
             // | |
-            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width - cornerLength, bbox[1].m_y));
-            corPos2.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width - cornerLength, bbox[1].m_y));
+            corPos2.emplace_back(point_2d(bbox[0].m_x + (i + 1) * width, bbox[1].m_y - cornerLength));
         }
         if (i != 0)
         {
@@ -142,10 +448,10 @@ void Snaking::buildSnakingPattern()
 
         // | |
         //  \ \ corner
-        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[0].m_y + cornerLength));
-        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[0].m_y + cornerLength));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[0].m_y));
         //horizontal
-        positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[0].m_y));
+        positions.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[0].m_y));
         positions.emplace_back(point_2d(bbox[1].m_x - cornerLength, bbox[0].m_y));
         // | |
         // / /corner
@@ -161,10 +467,10 @@ void Snaking::buildSnakingPattern()
     {
         // / / corner
         // | |
-        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width, bbox[1].m_y - cornerLength));
-        corPos1.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width, bbox[1].m_y - cornerLength));
+        corPos1.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[1].m_y));
         //horizontal
-        positions.emplace_back(point_2d(bbox[0].m_x + (i - 1) * width + cornerLength, bbox[1].m_y));
+        positions.emplace_back(point_2d(bbox[0].m_x + (i)*width + cornerLength, bbox[1].m_y));
         positions.emplace_back(point_2d(bbox[1].m_x - cornerLength, bbox[1].m_y));
         // \ \ corner
         // | |

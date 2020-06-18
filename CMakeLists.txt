@@ -33,6 +33,7 @@ set (PCBDRC_SRC
     src/clpSolver.cpp
     src/snaking.cpp
     src/boundingBox.cpp
+    src/cbcSolver.cpp
     #src/GridBasedRouter.cpp
     #src/plotter.cpp
     #src/globalParam.cpp
@@ -42,6 +43,7 @@ set (PCBDRC_HEADER
     src/decompaction.h
     #src/gurobiSolver.h
     src/clpSolver.h
+    src/cbcSolver.h
     src/snaking.h
     src/boundingBox.h
     #src/object.h
@@ -59,6 +61,7 @@ include_directories(
     ${KICADPCB_HOME}/src
     ${GUROBI_HOME}/include
     ${CLP_HOME}/include/coin-or
+    ${CLP_HOME}/include/cbc/coin
   )
 
 ############################################################
@@ -91,6 +94,7 @@ target_link_libraries( pcbdrc
   # ${GUROBI_HOME}/lib/libgurobi_c++.a
   #${GUROBI_HOME}/lib/libgurobi90.so
   ${CLP_HOME}/lib/libClp.dylib
+  ${CLP_HOME}/lib/libCbcSolver.dylib
 )
 
 ############################################################
