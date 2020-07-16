@@ -933,7 +933,7 @@ int Decompaction::checkDRC()
             multipoly poly1 = obj1.getMultipoly();
             multipoly poly2 = obj2.getMultipoly();
             auto dist = boost::geometry::distance(poly1, poly2);
-            if (dist > clearance)
+            if (dist <= clearance)
             {
                 m_db.addClearanceDrc(obj1, obj2);
                 count++;
