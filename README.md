@@ -9,6 +9,8 @@ Printed Circuit Board (PCB) decompactor
 - SWIG >= 2.0
 - Boost >= 1.6
 - CMake >= 3.1
+- COIN-OR CLP >= 1.17
+- COIN-OR CBC >= 2.10
 - Current support for .kicad_pcb format derived from KiCad v5.1.2
 
 ### Installing

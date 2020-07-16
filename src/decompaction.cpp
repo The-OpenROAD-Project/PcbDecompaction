@@ -173,7 +173,7 @@ void Decompaction::createRTree()
             obj.setShape(coord);
             obj.setPoly(polygon);
             obj.setBBox(b);
-            obj.setLocked(true); //inst.isLocked());
+            obj.setLocked(inst.isLocked());
             obj.setIsBus(isBus);
             obj.setMultipoly(mpoly);
             for (auto &&layer : layers)
@@ -238,8 +238,10 @@ void Decompaction::createRTree()
         obj.setRelativeShape(coordRe);
         obj.setPoly(polygon);
         obj.setBBox(b);
+
         obj.setMultipoly(mpoly);
-        obj.setLocked(true); //inst.isLocked());
+
+        obj.setLocked(inst.isLocked());
 
         for (auto &&layer : layers)
         {
@@ -507,7 +509,7 @@ std::vector<std::vector<double>> Decompaction::buildRelation(int &obj1Id, const 
 void Decompaction::traverseRTree()
 {
     std::cout << "=========================" << std::endl;
-    double MAX_DIST = 5;
+    double MAX_DIST = 1.5;
     bg::model::point<double, 2, bg::cs::cartesian> point1;
     bg::model::point<double, 2, bg::cs::cartesian> point2;
     for (auto &&obj1 : m_objects)
@@ -1442,6 +1444,7 @@ void Decompaction::writeLPfile(std::string &fileName)
 
 void Decompaction::readLPSolution(std::string &fileName)
 {
+    m_instDiffPos.clear();
     m_instDiffPos.resize(m_db.getInstancesCount());
     for (auto &&instDiff : m_instDiffPos)
     {

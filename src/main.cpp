@@ -1,96 +1,58 @@
 #include <iostream>
 #include "decompaction.h"
 #include "shape.h"
-//#include "gurobiSolver.h"
+#include "frTime.h"
+#include "gurobiSolver.h"
 #include "clpSolver.h"
 #include "cbcSolver.h"
 
 int main(int argc, char *argv[])
 {
     std::string designName = argv[1];
-    std::string lpFile = argv[2];
-    //std::string solFile = argv[3];
+    int maxIter = atoi(argv[2]);
+    std::string lpFileName = argv[3];
+
+    std::string outputKicad = argv[4];
     auto db = kicadPcbDataBase{designName};
-    //db.printLockedInst();
-    //db.printKiCad();
-    //db.printNodes();
-    //db.printComp();
-    //db.printInst();
-    //db.printNodes();
-    //db.printNet();
-    /*db.printInst();
-    db.printNetclass();*/
-    //db.printUnconnectedPins();
 
-    Decompaction drc(db);
-    drc.printAllNetLength();
-    drc.clearEquations();
-    drc.createRTree();
-    drc.traverseRTree();
-    //int id = 891;
-    //drc.printObject(id);
-    //drc.printDrc();
-    drc.printObject();
+    int cnt = 0;
+    fr::frTime timeObj;
+    double objVal = 0, preObjVal;
+    while(cnt < maxIter) {
+        preObjVal = objVal;
+        std::string lpFile = lpFileName + "_" + std::to_string(cnt) + ".lp";
 
-    //drc.printObject(id);
-    //drc.printDrc();
-    /*int objId = 755;
-    drc.printObject(objId);*/
+        Decompaction drc(db);
+        drc.clearEquations();
+        drc.createRTree();
+        drc.traverseRTree();
+        drc.writeLPfile(lpFile);
+        drc.printObject();
 
-    //
+        std::string solLpFile = lpFile + ".sol";
+        fr::frTime timeObjG;
+        std::cout << "################GUROBI SOLVER################" << std::endl;
+        GurobiSolver model;
+        
+        model.solver(lpFile, solLpFile, objVal);
 
-    /////////////FOR BUS////////////////
-    drc.addWidthToBusSegmentEquation();
-    drc.writeLPfileForBus(lpFile);
-    //drc.printDrc();
-    /////////////////////////////////////
+        timeObjG.print();
 
-    //drc.printObject(objId);
-    //db.printKiCad();
 
-    //db.printClearanceDrc();
-    //drc.testProjection();
+        std::cout << "==================LOAD RESULT===================" << std::endl;
 
-    /*point_2d p1, p2;
-    p1.m_x = 2.2;
-    p1.m_y = 1.1;
-    p2.m_x = 2.2;
-    p2.m_y = 2.3;
-    std::cout << "Larger " << (p1<=p2) << std::endl;*/
-
-    db.printInst();
-
-    std::string solLpFile = lpFile + ".sol";
-    /*GurobiSolver model;
-    model.solver(lpFile, solLpFile);*/
-
-    ClpSolver clpModel;
-    //clpModel.solver(lpFile, solLpFile);
-    //db.printInst();
-    CbcSolver cbcModel;
-    cbcModel.solver(lpFile, solLpFile);
-
-    /*GurobiSolver model;
-    model.solver(lpFile, solFile);*/
-
-    {
-        drc.readLPSolution(solLpFile);
-        drc.updateDatabase();
-        drc.updatePinsShapeAndPosition();
+        {
+            drc.readLPSolution(solLpFile);
+            drc.updateDatabase();
+            drc.updatePinsShapeAndPosition();
+        }
+        ++cnt;
+        if(abs(objVal-preObjVal) < 1000) break;
     }
+    std::cout << "Total iterations: " << cnt << std::endl;
+    timeObj.print();
 
-    std::cout << "#############ADD SNACKING############" << std::endl;
-    drc.addSnakingPatterns();
+    db.printKiCad("", outputKicad);
 
-    //drc.testBBoxSnaking();
-
-    /*std::cout << "===========SNACKING===========" << std::endl;
-    drc.getSnaking();*/
-
-    /*
-    std::cout << "===========BBOX TEST==========" << std::endl;
-    drc.getBoundingBox();*/
-
-    db.printKiCad();
     return 0;
 }
