@@ -72,6 +72,7 @@ public:
     void testBBoxSnaking();
     double getNetLength(int &);
     void printAllNetLength();
+    int checkDRC();
 
 private:
     std::vector<Object> m_objects;

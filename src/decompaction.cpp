@@ -7,6 +7,15 @@ bool comp(std::pair<int, point_2d> a, std::pair<int, point_2d> b)
 
 void Decompaction::createRTree()
 {
+    const double buffer_distance = m_db.getLargestClearance() / 2;
+    const double via_buffer_distance = 0.15;
+    const int points_per_circle = 36;
+    boost::geometry::strategy::buffer::distance_symmetric<coordinate_type> distance_strategy(buffer_distance);
+    boost::geometry::strategy::buffer::distance_symmetric<coordinate_type> via_distance_strategy(via_buffer_distance);
+    boost::geometry::strategy::buffer::join_round join_strategy(points_per_circle);
+    boost::geometry::strategy::buffer::end_round end_strategy(points_per_circle);
+    boost::geometry::strategy::buffer::point_circle circle_strategy(points_per_circle);
+    boost::geometry::strategy::buffer::side_straight side_strategy;
     m_numLayer = m_db.getNumCopperLayers();
     m_rtrees.resize(m_numLayer);
     std::vector<net> nets = m_db.getNets();
@@ -40,6 +49,11 @@ void Decompaction::createRTree()
             }
             // std::cout << std::endl;
             bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y));
+            linestring ls;
+            bg::append(ls, point(line[0].m_x, line[0].m_y));
+            bg::append(ls, point(line[1].m_x, line[1].m_y));
+            multipoly mpoly;
+            boost::geometry::buffer(ls, mpoly, distance_strategy, side_strategy, join_strategy, end_strategy, circle_strategy);
 
             box b = bg::return_envelope<box>(polygon);
             Object obj(ObjectType::SEGMENT, s.getId(), s.getNetId(), -1, -1);
@@ -51,6 +65,7 @@ void Decompaction::createRTree()
             obj.setPos(s.getPos());
             obj.setIsBus(isBus);
             obj.setPreviousPosition();
+            obj.setMultipoly(mpoly);
             if (layerId >= m_numLayer)
             {
                 layerId = m_numLayer - 1;
@@ -83,10 +98,14 @@ void Decompaction::createRTree()
             bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y));
             std::vector<std::string> layers = v.getLayers();
             box b = bg::return_envelope<box>(polygon);
+            point p{point{pos.m_x, pos.m_y}};
+            multipoly mpoly;
+            boost::geometry::buffer(p, mpoly, via_distance_strategy, side_strategy, join_strategy, end_strategy, circle_strategy);
             Object obj(ObjectType::VIA, v.getId(), v.getNetId(), -1, -1);
 
             obj.setShape(coord);
             obj.setPoly(polygon);
+            obj.setMultipoly(mpoly);
             obj.setRelativeShape(coordRe);
             obj.setBBox(b);
             obj.setPos(pos);
@@ -115,6 +134,7 @@ void Decompaction::createRTree()
             auto &pad = comp.getPadstack(padId);
             auto pinPos = point_2d{};
             m_db.getPinPosition(pin, &pinPos);
+            points_2d shape = shape_to_coords(pad.getSize(), pinPos, pad.getPadShape(), inst.getAngle(), pad.getAngle(), pad.getRoundRectRatio(), 36);
             points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), clearance, inst.getAngle(), pad.getAngle(), pad.getPadShape());
             auto coordRe = points_2d{};
             m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
@@ -139,6 +159,14 @@ void Decompaction::createRTree()
             bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y));
             std::vector<int> layers = m_db.getPinLayer(instId, padId);
             box b = bg::return_envelope<box>(polygon);
+            multipoly mpoly;
+            mpoly.resize(1);
+            for (auto &&p : shape)
+            {
+                double x = p.m_x;
+                double y = p.m_y;
+                bg::append(mpoly[0].outer(), point{x, y});
+            }
             Object obj(ObjectType::PIN, pad.getId(), net.getId(), compId, instId);
             obj.setPos(pinPos);
             obj.setRelativeShape(coordRe);
@@ -147,6 +175,7 @@ void Decompaction::createRTree()
             obj.setBBox(b);
             obj.setLocked(true); //inst.isLocked());
             obj.setIsBus(isBus);
+            obj.setMultipoly(mpoly);
             for (auto &&layer : layers)
             {
                 int layerId = layer;
@@ -172,10 +201,12 @@ void Decompaction::createRTree()
         component comp = m_db.getComponent(compId);
         instance inst = m_db.getInstance(instId);
         auto &pad = comp.getPadstack(padId);
+        auto pinPos = point_2d{};
+        points_2d shape = shape_to_coords(pad.getSize(), pinPos, pad.getPadShape(), inst.getAngle(), pad.getAngle(), pad.getRoundRectRatio(), 36);
         points_2d coord = pinShapeToOctagon(pad.getSize(), pad.getPos(), 0.1, inst.getAngle(), pad.getAngle(), pad.getPadShape());
         auto coordRe = points_2d{};
         m_db.getPinShapeRelativeCoordsToModule(pad, inst, coord, &coordRe);
-        auto pinPos = point_2d{};
+
         m_db.getPinPosition(pin, &pinPos);
 
         for (auto &&p : coord)
@@ -193,12 +224,21 @@ void Decompaction::createRTree()
         bg::append(polygon.outer(), point(coord[0].m_x, coord[0].m_y));
         std::vector<int> layers = m_db.getPinLayer(instId, padId);
         box b = bg::return_envelope<box>(polygon);
+        multipoly mpoly;
+        mpoly.resize(1);
+        for (auto &&p : shape)
+        {
+            double x = p.m_x;
+            double y = p.m_y;
+            bg::append(mpoly[0].outer(), point(x, y));
+        }
         Object obj(ObjectType::PIN, pad.getId(), -1, compId, instId);
         obj.setPos(pinPos);
         obj.setShape(coord);
         obj.setRelativeShape(coordRe);
         obj.setPoly(polygon);
         obj.setBBox(b);
+        obj.setMultipoly(mpoly);
         obj.setLocked(true); //inst.isLocked());
 
         for (auto &&layer : layers)
@@ -873,6 +913,108 @@ void Decompaction::printDrc()
 
     std::cout << "###############SUMMARY#################" << std::endl;
     std::cout << "DRC count: " << count / 2 << std::endl;
+}
+
+int Decompaction::checkDRC()
+{
+    int count = 0;
+    double clearance = m_db.getLargestClearance();
+    for (auto &&obj1 : m_objects)
+    {
+        for (auto &&obj2 : m_objects)
+        {
+            if (obj1.getNetId() == obj2.getNetId())
+                continue;
+            if (obj1.getType() == ObjectType::PIN && obj2.getType() == ObjectType::PIN && obj1.getInstId() == obj2.getInstId())
+                continue;
+
+            multipoly poly1 = obj1.getMultipoly();
+            multipoly poly2 = obj2.getMultipoly();
+            auto dist = boost::geometry::distance(poly1, poly2);
+            if (dist <= clearance)
+            {
+                m_db.addClearanceDrc(obj1, obj2);
+                count++;
+
+                std::cout << "----------CONFLICT---------- " << std::endl;
+                std::cout << "obj1 id: " << obj1.getId() << ", obj2 id: " << obj2.getId() << ", distance:" << dist << std::endl;
+                if (obj1.getType() == ObjectType::PIN)
+                {
+                    auto compId = obj1.getCompId();
+                    auto instId = obj1.getInstId();
+                    auto padId = obj1.getDBId();
+                    component comp = m_db.getComponent(compId);
+                    instance inst = m_db.getInstance(instId);
+                    auto &pad = comp.getPadstack(padId);
+                    std::cout << "Component: " << comp.getName() << " Instance: " << inst.getName();
+                    std::cout << " Pad: " << pad.getName() << std::endl;
+
+                    printPolygon(obj1.getShape());
+                }
+                else if (obj1.getType() == ObjectType::SEGMENT)
+                {
+                    auto dbId = obj1.getDBId();
+                    points_2d pos = obj1.getPos();
+                    std::cout << "segment: ";
+                    for (auto &&p : pos)
+                    {
+                        std::cout << "(" << p.m_x << "," << p.m_y << ") ";
+                    }
+                    std::cout << std::endl;
+
+                    printPolygon(obj1.getShape());
+                }
+                else if (obj1.getType() == ObjectType::VIA)
+                {
+                    auto dbId = obj1.getDBId();
+                    points_2d pos = obj1.getPos();
+                    std::cout << "via: (" << pos[0].m_x << "," << pos[0].m_y << ")" << std::endl;
+
+                    printPolygon(obj1.getShape());
+                }
+
+                if (obj2.getType() == ObjectType::PIN)
+                {
+                    auto compId = obj2.getCompId();
+                    auto instId = obj2.getInstId();
+                    auto padId = obj2.getDBId();
+                    component comp = m_db.getComponent(compId);
+                    instance inst = m_db.getInstance(instId);
+                    auto &pad = comp.getPadstack(padId);
+                    std::cout << "Component: " << comp.getName() << " Instance: " << inst.getName();
+                    std::cout << " Pad: " << pad.getName() << std::endl;
+                    std::cout << " obj id: " << obj2.getId() << std::endl;
+
+                    printPolygon(obj2.getShape());
+                }
+                else if (obj2.getType() == ObjectType::SEGMENT)
+                {
+                    auto dbId = obj2.getDBId();
+                    points_2d pos = obj2.getPos();
+                    std::cout << "segment: ";
+                    for (auto &&p : pos)
+                    {
+                        std::cout << "(" << p.m_x << "," << p.m_y << ") ";
+                    }
+                    std::cout << std::endl;
+
+                    printPolygon(obj2.getShape());
+                }
+                else if (obj2.getType() == ObjectType::VIA)
+                {
+                    auto dbId = obj2.getDBId();
+                    points_2d pos = obj2.getPos();
+                    std::cout << "via: (" << pos[0].m_x << "," << pos[0].m_y << ")" << std::endl;
+                    printPolygon(obj2.getShape());
+                }
+            }
+        }
+    }
+
+    std::cout << "###############SUMMARY#################" << std::endl;
+    std::cout << "DRC count: " << count / 2 << std::endl;
+
+    return count / 2;
 }
 
 void Decompaction::printObject()
