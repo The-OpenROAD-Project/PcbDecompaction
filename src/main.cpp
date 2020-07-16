@@ -1,9 +1,10 @@
 #include <iostream>
 #include "decompaction.h"
 #include "shape.h"
-#include "gurobiSolver.h"
-//#include "clpSolver.h"
 #include "frTime.h"
+#include "gurobiSolver.h"
+#include "clpSolver.h"
+#include "cbcSolver.h"
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +51,6 @@ int main(int argc, char *argv[])
     }
     std::cout << "Total iterations: " << cnt << std::endl;
     timeObj.print();
-
 
     db.printKiCad("", outputKicad);
 

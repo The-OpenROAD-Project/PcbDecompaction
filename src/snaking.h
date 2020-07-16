@@ -9,7 +9,7 @@
 class Snaking
 {
 public:
-    Snaking(const points_2d &bbox, const double &clearance, const double &width, const points_2d &points, std::string layer = "TOP") : m_bbox(bbox), m_clearance(clearance), m_segmentWidth(width), m_points(points), m_layer(layer)
+    Snaking(const points_2d &bbox, const double &clearance, const double &width, const points_2d &points, int &netId, std::string layer = "TOP") : m_bbox(bbox), m_clearance(clearance), m_segmentWidth(width), m_points(points), m_netId(netId), m_layer(layer)
     {
         buildSnakingPattern();
     };
@@ -41,6 +41,9 @@ public:
     void snakingRotation(int angle);
     point_2d getIntersectionOfPointLine(point_2d &pt, points_2d &line);
 
+    //Refactor
+    void oldbuildSnakingPattern();
+
 private:
     points_2d m_bbox; //[(xmin, ymin) (xmax,ymax)]
     double m_clearance;
@@ -48,6 +51,7 @@ private:
     points_2d m_points; //[start point, end point]
     Segments m_snaking;
     std::string m_layer;
+    int m_netId;
 };
 
 #endif
