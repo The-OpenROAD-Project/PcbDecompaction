@@ -1401,10 +1401,10 @@ void Decompaction::writeLPfile(std::string &fileName)
         }
     }
 
-    for (const auto &str : instEqus)
+    /*for (const auto &str : instEqus)
     {
         file << str << std::endl;
-    }
+    }*/
 
     file << std::endl;
     file << "Bounds" << std::endl;
@@ -1444,7 +1444,7 @@ void Decompaction::writeLPfile(std::string &fileName)
     }
 
     file << std::endl;
-    file << "Binary" << std::endl;
+    /*file << "Binary" << std::endl;
 
     for (int i = 0; i < m_db.getInstancesCount(); ++i)
     {
@@ -1453,7 +1453,7 @@ void Decompaction::writeLPfile(std::string &fileName)
             file << "p" << i << "_" << j << std::endl;
             file << "q" << i << "_" << j << std::endl;
         }
-    }
+    }*/
 
     file << "End" << std::endl;
 
