@@ -2479,6 +2479,8 @@ vector<string> Decompaction::collectNonoverlapInstEqu()
         {
             auto &inst1 = insts[i];
             auto &inst2 = insts[j];
+            if (inst1.isLocked() || inst2.isLocked())
+                continue;
             auto angle1 = inst1.getAngle();
             auto compId1 = inst1.getComponentId();
             point_2d wh1;
