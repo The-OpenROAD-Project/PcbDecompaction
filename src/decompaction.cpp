@@ -1557,8 +1557,6 @@ void Decompaction::readLPSolution(std::string &fileName)
         {
             if (objNo[1] == 't' && objNo[2] == 'i')
             {
-                objId = std::stoi(objNo.substr(4));
-                updateValue(objId, "y", coor, ObjectType::PIN);
             }
             else if (objNo[1] == '_')
             {
@@ -1567,12 +1565,16 @@ void Decompaction::readLPSolution(std::string &fileName)
             }
             else if (objNo[1] == 'i')
             {
+                objId = std::stoi(objNo.substr(3));
+                updateValue(objId, "y", coor, ObjectType::PIN);
             }
         }
         else if (objNo[0] == 'x')
         {
             if (objNo[1] == 'i')
             {
+                objId = std::stoi(objNo.substr(3));
+                updateValue(objId, "x", coor, ObjectType::PIN);
             }
             else if (objNo[1] == '_')
             {
@@ -1581,8 +1583,6 @@ void Decompaction::readLPSolution(std::string &fileName)
             }
             else if (objNo[1] == 't' && objNo[2] == 'i')
             {
-                objId = std::stoi(objNo.substr(4));
-                updateValue(objId, "x", coor, ObjectType::PIN);
             }
         }
         else if (objNo[0] == 'w')
@@ -1605,10 +1605,20 @@ void Decompaction::updateValue(int &objId, std::string type, double &coor, Objec
 {
     if (otype == ObjectType::PIN)
     {
+        auto &&inst = m_db.getInstance(objId);
+
         if (type == "x")
-            m_instDiffPos[objId].m_x = coor;
+        {
+            auto instX = inst.getX();
+            m_instDiffPos[objId].m_x = coor - instX;
+            inst.setX(coor);
+        }
         else if (type == "y")
-            m_instDiffPos[objId].m_y = coor;
+        {
+            auto instY = inst.getY();
+            m_instDiffPos[objId].m_y = coor - instY;
+            inst.setY(coor);
+        }
         return;
         int i;
         for (i = 0; i < m_objects.size(); ++i)
@@ -1708,7 +1718,7 @@ void Decompaction::updateDatabase()
         }
     }
 
-    for (int i = 0; i < m_instDiffPos.size(); ++i)
+    /*for (int i = 0; i < m_instDiffPos.size(); ++i)
     {
         auto &&diffPos = m_instDiffPos[i];
         auto &&inst = m_db.getInstance(i);
@@ -1717,7 +1727,9 @@ void Decompaction::updateDatabase()
         double x = instX + diffPos.m_x, y = instY + diffPos.m_y;
         inst.setX(x);
         inst.setY(y);
-    }
+
+        std::cout << "i: " << i << " (" << x << "," << y << ")" << std::endl;
+    }*/
 }
 
 void Decompaction::clearEquations()
