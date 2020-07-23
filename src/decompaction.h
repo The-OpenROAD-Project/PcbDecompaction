@@ -74,6 +74,7 @@ public:
     void printAllNetLength();
     int checkDRC();
     vector<string> collectNonoverlapInstEqu();
+    void writeLPInstFile(std::string &fileName);
 
 private:
     std::vector<Object> m_objects;

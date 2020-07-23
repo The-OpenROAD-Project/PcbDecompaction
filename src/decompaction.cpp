@@ -1448,7 +1448,77 @@ void Decompaction::writeLPfile(std::string &fileName)
 
     for (int i = 0; i < m_db.getInstancesCount(); ++i)
     {
-        for (int j = i; j < m_db.getInstancesCount(); ++j)
+        for (int j = i + 1; j < m_db.getInstancesCount(); ++j)
+        {
+            file << "p" << i << "_" << j << std::endl;
+            file << "q" << i << "_" << j << std::endl;
+        }
+    }
+
+    file << "End" << std::endl;
+
+    file.close();
+}
+
+void Decompaction::writeLPInstFile(std::string &fileName)
+{
+    std::ofstream file;
+
+    auto instEqus = collectNonoverlapInstEqu();
+    file.open(fileName);
+    file << "Minimize" << std::endl;
+    int ini = 0;
+
+    for (int instId = 0; instId < m_db.getInstancesCount(); ++instId)
+    {
+        if (ini == 0)
+        {
+            file << "xti_" << instId << " + yti_" << instId;
+            ++ini;
+        }
+        else
+
+            file << " + xti_" << instId << " + yti_" << instId;
+    }
+
+    file << std::endl;
+    file << std::endl;
+    file << "Subject To" << std::endl;
+    for (int instId = 0; instId < m_db.getInstancesCount(); ++instId)
+    {
+        auto &&inst = m_db.getInstance(instId);
+        double x = inst.getX(), y = inst.getY();
+        file << "xi_" << instId << " - "
+             << "xti_" << instId << " <= " << x << std::endl;
+        file << "xi_" << instId << " + "
+             << "xti_" << instId << " >= " << x << std::endl;
+        file << "yi_" << instId << " - "
+             << "yti_" << instId << " <= " << y << std::endl;
+        file << "yi_" << instId << " + "
+             << "yti_" << instId << " >= " << y << std::endl;
+    }
+
+    for (const auto &str : instEqus)
+    {
+        file << str << std::endl;
+    }
+
+    file << std::endl;
+    file << "Bounds" << std::endl;
+
+    for (int instId = 0; instId < m_db.getInstancesCount(); ++instId)
+    {
+        file << "xi_" << instId << " >= 0" << std::endl;
+        // file << "xt_" << objId << " <= 1" << std::endl;
+        file << "yi_" << instId << " >= 0" << std::endl;
+    }
+
+    file << std::endl;
+    file << "Binary" << std::endl;
+
+    for (int i = 0; i < m_db.getInstancesCount(); ++i)
+    {
+        for (int j = i + 1; j < m_db.getInstancesCount(); ++j)
         {
             file << "p" << i << "_" << j << std::endl;
             file << "q" << i << "_" << j << std::endl;
