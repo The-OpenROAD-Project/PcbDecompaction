@@ -1271,6 +1271,7 @@ void Decompaction::writeLPfile(std::string &fileName)
 {
     std::ofstream file;
     int slackWeight = 100000;
+    auto instEqus = collectNonoverlapInstEqu();
     file.open(fileName);
     file << "Minimize" << std::endl;
     int count = 0, ini = 0;
@@ -1400,6 +1401,11 @@ void Decompaction::writeLPfile(std::string &fileName)
         }
     }
 
+    for (const auto &str : instEqus)
+    {
+        file << str << std::endl;
+    }
+
     file << std::endl;
     file << "Bounds" << std::endl;
 
@@ -1434,6 +1440,18 @@ void Decompaction::writeLPfile(std::string &fileName)
         {
             file << "s_" << count << " >= 0" << std::endl;
             ++count;
+        }
+    }
+
+    file << std::endl;
+    file << "Binary" << std::endl;
+
+    for (int i = 0; i < m_db.getInstancesCount(); ++i)
+    {
+        for (int j = i; j < m_db.getInstancesCount(); ++j)
+        {
+            file << "p" << i << "_" << j << std::endl;
+            file << "q" << i << "_" << j << std::endl;
         }
     }
 
@@ -2364,4 +2382,60 @@ void Decompaction::printAllNetLength()
         double length = getNetLength(i);
         std::cout << "Net id: " << i << ", length: " << length << std::endl;
     }
+}
+
+vector<string> Decompaction::collectNonoverlapInstEqu()
+{
+    double minX, minY, W, H;
+    m_db.getBoardBoundaryByEdgeCuts(minX, W, minY, H);
+    std::vector<instance> insts = m_db.getInstances();
+    vector<string> equs;
+
+    for (int i = 0; i < insts.size(); ++i)
+    {
+        for (int j = i + 1; j < insts.size(); ++j)
+        {
+            auto &inst1 = insts[i];
+            auto &inst2 = insts[j];
+            auto angle1 = inst1.getAngle();
+            auto compId1 = inst1.getComponentId();
+            point_2d wh1;
+            m_db.getCompBBox(compId1, &wh1);
+            if (angle1 == 90 || angle1 == 270)
+            {
+                auto temp = wh1.m_x;
+                wh1.m_x = wh1.m_y;
+                wh1.m_y = temp;
+            }
+            auto angle2 = inst2.getAngle();
+            auto compId2 = inst2.getComponentId();
+
+            point_2d wh2;
+            m_db.getCompBBox(compId2, &wh2);
+            if (angle2 == 90 || angle2 == 270)
+            {
+                auto temp = wh2.m_x;
+                wh2.m_x = wh2.m_y;
+                wh2.m_y = temp;
+            }
+
+            double w = (wh1.m_x + wh2.m_x) / 2;
+            double h = (wh1.m_y + wh2.m_y) / 2;
+
+            string eq1 = "xi_" + to_string(j) + " - xi_" + to_string(i) + " + " + to_string(W) + " p" + to_string(i) + "_" + to_string(j) + " + " + to_string(W) + " q" + to_string(i) + "_" + to_string(j) + " >= " + to_string(w);
+            double val = w - W;
+            string eq2 = "xi_" + to_string(i) + " - xi_" + to_string(j) + " - " + to_string(W) + " p" + to_string(i) + "_" + to_string(j) + " + " + to_string(W) + " q" + to_string(i) + "_" + to_string(j) + " >= " + to_string(val);
+            val = h - H;
+            string eq3 = "yi_" + to_string(j) + " - yi_" + to_string(i) + " + " + to_string(H) + " p" + to_string(i) + "_" + to_string(j) + " - " + to_string(H) + " q" + to_string(i) + "_" + to_string(j) + " >= " + to_string(val);
+            val = h - 2 * H;
+            string eq4 = "yi_" + to_string(i) + " - yi_" + to_string(j) + " - " + to_string(H) + " p" + to_string(i) + "_" + to_string(j) + " - " + to_string(H) + " q" + to_string(i) + "_" + to_string(j) + " >= " + to_string(val);
+
+            equs.emplace_back(eq1);
+            equs.emplace_back(eq2);
+            equs.emplace_back(eq3);
+            equs.emplace_back(eq4);
+        }
+    }
+
+    return equs;
 }

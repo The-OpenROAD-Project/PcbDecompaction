@@ -73,6 +73,7 @@ public:
     double getNetLength(int &);
     void printAllNetLength();
     int checkDRC();
+    vector<string> collectNonoverlapInstEqu();
 
 private:
     std::vector<Object> m_objects;
