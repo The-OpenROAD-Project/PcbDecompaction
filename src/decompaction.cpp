@@ -2479,8 +2479,7 @@ vector<string> Decompaction::collectNonoverlapInstEqu()
         {
             auto &inst1 = insts[i];
             auto &inst2 = insts[j];
-            if (inst1.isLocked() || inst2.isLocked())
-                continue;
+
             auto angle1 = inst1.getAngle();
             auto compId1 = inst1.getComponentId();
             point_2d wh1;
@@ -2519,6 +2518,18 @@ vector<string> Decompaction::collectNonoverlapInstEqu()
             equs.emplace_back(eq3);
             equs.emplace_back(eq4);
         }
+    }
+
+    for (int i = 0; i < insts.size(); ++i)
+    {
+        auto &inst1 = insts[i];
+        if (!inst1.isLocked())
+            continue;
+        double x = inst1.getX(), y = inst1.getY();
+        string eq1 = "xi_" + to_string(i) + " = " + to_string(x);
+        string eq2 = "yi_" + to_string(i) + " = " + to_string(y);
+        equs.emplace_back(eq1);
+        equs.emplace_back(eq2);
     }
 
     return equs;
