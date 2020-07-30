@@ -1606,6 +1606,8 @@ void Decompaction::updateValue(int &objId, std::string type, double &coor, Objec
     if (otype == ObjectType::PIN)
     {
         auto &&inst = m_db.getInstance(objId);
+        if (inst.isLocked())
+            return;
 
         if (type == "x")
         {
